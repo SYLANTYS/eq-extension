@@ -15,32 +15,33 @@ Provides a clean EQ UI and a correct MV3 architecture (popup, background, conten
 
 ## Development
 
-Install dependencies:
+### Install dependencies
 
 ```bash
 npm install
-UI development (no Chrome APIs):
-
-npm run dev
-Open the Vite URL and navigate to:
-
-/popup/index.html
 ```
 
-Build & Load Extension
-Build:
+### UI development (no Chrome APIs)
+
+```bash
+npm run dev
+```
+
+Open the Vite URL and navigate to `/popup/index.html`.
+
+### Build & load the extension
+
+```bash
 npm run build
+```
+
 Load in Chrome:
 
-Open chrome://extensions
-
-Enable Developer mode
-
-Click Load unpacked
-
-Select the dist/ folder
-
-Reload after each build
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Click **Load unpacked**.
+4. Select the `dist/` folder.
+5. Reload after each build.
 
 ## TODO
 
