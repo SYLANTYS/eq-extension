@@ -9,16 +9,25 @@ export default defineConfig({
     {
       name: "copy-extension-files",
       closeBundle() {
-        // Ensure dist exists
-        if (!existsSync("dist")) mkdirSync("dist");
+        // Ensure folders
+        mkdirSync("dist/background", { recursive: true });
+        mkdirSync("dist/content", { recursive: true });
 
         // Copy manifest
         copyFileSync("manifest.json", "dist/manifest.json");
 
-        // Copy icon (from public)
+        // Copy icon
         if (existsSync("public/icon.png")) {
           copyFileSync("public/icon.png", "dist/icon.png");
         }
+
+        // Copy background + content scripts
+        copyFileSync(
+          "src/background/background.js",
+          "dist/background/background.js"
+        );
+
+        copyFileSync("src/content/content.js", "dist/content/content.js");
       },
     },
   ],
@@ -27,14 +36,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, "src/popup/index.html"),
-        offscreen: resolve(__dirname, "src/offscreen/offscreen.html"),
-      },
-      output: {
-        entryFileNames: (chunk) => {
-          // Put background/content in their own folders if you later add them as entries
-          return "assets/[name].js";
-        },
+        popup: resolve(__dirname, "popup/index.html"),
+        offscreen: resolve(__dirname, "offscreen/offscreen.html"),
       },
     },
   },

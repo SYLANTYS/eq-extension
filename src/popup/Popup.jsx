@@ -1,6 +1,6 @@
 export default function Popup() {
   return (
-    <div className="w-[720px] h-[420px] overflow-hidden bg-slate-800 text-slate-100 flex flex-col">
+    <div className="w-[820px] h-[630px] overflow-hidden bg-slate-800 text-slate-100 flex flex-col">
       {/* ================= HEADER ================= */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-slate-700">
         <div className="text-lg font-semibold">Ears Audio Toolkit</div>
@@ -24,18 +24,18 @@ export default function Popup() {
       <div className="flex flex-1 overflow-hidden">
         {/* ===== LEFT: VOLUME / SIDE CONTROLS ===== */}
         <aside className="w-16 flex flex-col items-center justify-center border-r border-slate-700">
-          <div className="text-xs mb-2 -rotate-90">Volume</div>
+          <div className="text-xs mb-2">Volume</div>
 
           <div className="h-40 w-2 bg-slate-600 rounded relative">
             {/* volume thumb placeholder */}
-            <div className="absolute bottom-1/2 w-4 h-2 bg-slate-300 -left-1 rounded" />
+            <div className="absolute bottom-1/2 w-4 h-2 bg-slate-300 -left-1" />
           </div>
         </aside>
 
         {/* ===== CENTER: EQ CANVAS ===== */}
         <main className="flex-1 relative">
           <div className="absolute inset-0 flex items-center justify-center text-slate-400">
-            {/* Replace this with <canvas /> later */}
+            {/* Replace this with <canvas /> later 750px by 380px */}
             EQ Canvas Area
           </div>
         </main>
