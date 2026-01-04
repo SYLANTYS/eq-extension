@@ -1,3 +1,10 @@
 @import "tailwindcss/preflight";
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
+
+@theme {
+  --color-eq-blue: rgb(38 54 70);
+  --color-eq-yellow: rgb(244 217 170);
+  --color-eq-point: rgb(198 246 221);
+  --color-eq-shelf: rgb(138 104 158);
+}
