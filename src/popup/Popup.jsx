@@ -20,7 +20,7 @@ export default function Popup() {
         </header>
 
         {/* ================= TABS / TOP CONTROLS ================= */}
-        <div className="pl-[3.25rem]">
+        <div className="pl-13">
           <div className="flex gap-1 py-0.5 text-sm">
             <button className="px-2 py-0.5 border border-eq-yellow rounded-t-lg">
               Controls
@@ -39,7 +39,7 @@ export default function Popup() {
 
         {/* ================= MAIN BODY ================= */}
         <div className="flex overflow-hidden">
-          <aside className="w-12 ml-1 h-full flex flex-col items-center justify-between">
+          <aside className="w-12 ml-1 flex flex-col items-center justify-between">
             {/* Rotated spectrum button */}
             <button className="my-6 text-xs -rotate-90 border border-eq-yellow px-2 rounded-b-sm rounded-t-xs">
               Spectrum Visualizer
@@ -47,7 +47,7 @@ export default function Popup() {
             {/* ===== LEFT: VOLUME CONTROLS ===== */}
             <div className="flex flex-col items-center">
               <div className="text-xs mb-2">volume</div>
-              <div className="h-60 w-[3px] bg-eq-yellow/20 rounded relative">
+              <div className="h-60 w-0.75 bg-eq-yellow/20 rounded relative">
                 {/* volume thumb placeholder */}
                 <div className="absolute bottom-1/2 w-9 h-1.5 bg-eq-yellow -left-4.25" />
               </div>
@@ -87,48 +87,6 @@ export default function Popup() {
 
           {/* Bottom row: quick presets (right aligned) */}
           <div className="flex justify-end gap-2 mt-3 flex-wrap">
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              Bass Boost
-            </button>
-
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              YouTube
-            </button>
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              Bass Boost
-            </button>
-
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              YouTube
-            </button>
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              Bass Boost
-            </button>
-
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              YouTube
-            </button>
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              Bass Boost
-            </button>
-
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              YouTube
-            </button>
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              Bass Boost
-            </button>
-
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              YouTube
-            </button>
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              Bass Boost
-            </button>
-
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
-              YouTube
-            </button>
             <button className="px-1.5 border border-eq-yellow rounded-xs">
               Bass Boost
             </button>
