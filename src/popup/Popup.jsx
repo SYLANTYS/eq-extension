@@ -1,11 +1,11 @@
 export default function Popup() {
   return (
-    <div className="w-[800px] h-[600px] overflow-hidden bg-eq-blue text-eq-yellow flex flex-col">
+    <div className="w-[800px] h-[600px] overflow-hidden bg-eq-blue text-eq-yellow flex flex-col relative">
       {/* ================= HEADER ================= */}
-      <header className="flex items-center justify-between px-4 py-2">
+      <header className="flex items-center justify-between px-4 py-2 border border-red-600">
         <div className="text-3xl font-bold">Ears Audio Toolkit</div>
 
-        <div className="text-xs text-right">
+        <div className="text-sm text-right">
           <div>
             <i>
               Warning: Loud audio will damage hearing/speakers! Listen
@@ -19,7 +19,7 @@ export default function Popup() {
       </header>
 
       {/* ================= TABS / TOP CONTROLS ================= */}
-      <div className="flex gap-2 px-4 py-2 text-sm">
+      <div className="flex gap-2 px-4 py-2 text-sm border border-red-600">
         <button className="px-2 py-1 border border-eq-yellow rounded-t-lg">
           Controls
         </button>
@@ -35,7 +35,7 @@ export default function Popup() {
       </div>
 
       {/* ================= MAIN BODY ================= */}
-      <div className="flex overflow-hidden">
+      <div className="flex overflow-hidden border border-red-600">
         {/* ===== LEFT: VOLUME / SIDE CONTROLS ===== */}
         <aside className="w-12 flex flex-col items-center justify-center">
           <div className="text-xs mb-2">volume</div>
@@ -47,7 +47,7 @@ export default function Popup() {
         </aside>
 
         {/* ===== CENTER: EQ CANVAS ===== */}
-        <main className="w-[720px] h-[360px] relative">
+        <main className="w-[720px] h-[360px] relative border">
           <div className="absolute inset-0 flex items-center justify-center border border-eq-yellow/50">
             {/* Replace this with <canvas /> later 750px by 380px */}
             EQ Canvas Area
@@ -56,7 +56,7 @@ export default function Popup() {
       </div>
 
       {/* ================= PRESET / ACTION BUTTONS ================= */}
-      <div className="flex items-center gap-2 px-4 py-2 text-sm">
+      <div className="flex items-center gap-2 px-4 py-2 text-sm border border-red-600">
         <input
           placeholder="Preset Name"
           className="border border-eq-yellow px-2 py-1 rounded text-sm w-32"
@@ -86,16 +86,23 @@ export default function Popup() {
       </div>
 
       {/* ================= FOOTER ================= */}
-      <footer className="flex items-center justify-between px-4 py-2 text-xs">
-        <div className="text-eq-yellow">
-          <u>Support development with Ears Pro!</u>
+      <footer className="absolute bottom-0 left-0 right-0 px-4 py-2 text-sm border-t border-red-600">
+        {/* Centered primary action */}
+        <div className="flex justify-center mb-2">
+          <button className="px-2 py-1 border border-eq-yellow rounded">
+            Stop EQing This Tab
+          </button>
         </div>
-        <button className="px-2 py-1 border border-eq-yellow rounded">
-          Stop EQing This Tab
-        </button>
 
-        <div className="text-eq-yellow">
-          <u>Open in Full Window</u>
+        {/* Bottom row */}
+        <div className="flex items-center justify-between">
+          <div className="text-eq-yellow">
+            <u>Support development with Ears Pro!</u>
+          </div>
+
+          <div className="text-eq-yellow">
+            <u>Open in Full Window</u>
+          </div>
         </div>
       </footer>
     </div>
