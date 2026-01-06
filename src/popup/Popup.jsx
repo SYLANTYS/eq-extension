@@ -2,10 +2,10 @@ export default function Popup() {
   return (
     <div className="w-[800px] h-[600px] overflow-hidden bg-eq-blue text-eq-yellow flex flex-col relative">
       {/* ================= HEADER ================= */}
-      <header className="flex items-center justify-between px-4 py-2 border border-red-600">
+      <header className="flex items-center justify-between px-3 py-2 border border-red-600">
         <div className="text-3xl font-bold">Ears Audio Toolkit</div>
 
-        <div className="text-sm text-right">
+        <div className="text-sm text-right px-1">
           <div>
             <i>
               Warning: Loud audio will damage hearing/speakers! Listen
@@ -19,17 +19,17 @@ export default function Popup() {
       </header>
 
       {/* ================= TABS / TOP CONTROLS ================= */}
-      <div className="flex gap-2 px-4 py-2 text-sm border border-red-600">
-        <button className="px-2 py-1 border border-eq-yellow rounded-t-lg">
+      <div className="flex gap-2 px-3 py-2 text-sm border border-red-600">
+        <button className="px-1.5 border border-eq-yellow rounded-t-lg">
           Controls
         </button>
-        <button className="px-2 py-1 border border-eq-yellow rounded-t-lg">
+        <button className="px-1.5 border border-eq-yellow rounded-t-lg">
           Guide
         </button>
-        <button className="px-2 py-1 border border-eq-yellow rounded-t-lg">
+        <button className="px-1.5 border border-eq-yellow rounded-t-lg">
           Active Tabs
         </button>
-        <button className="px-2 py-1 border border-eq-yellow rounded-t-lg">
+        <button className="px-1.5 border border-eq-yellow rounded-t-lg">
           Pro
         </button>
       </div>
@@ -56,40 +56,44 @@ export default function Popup() {
       </div>
 
       {/* ================= PRESET / ACTION BUTTONS ================= */}
-      <div className="flex items-center gap-2 px-4 py-2 text-sm border border-red-600">
-        <input
-          placeholder="Preset Name"
-          className="border border-eq-yellow px-2 py-1 rounded text-sm w-32"
-        />
+      <div className="px-3 py-2 text-sm border border-red-600">
+        {/* Top row: presets + actions (right aligned) */}
+        <div className="flex justify-end items-center gap-2">
+          <input
+            placeholder="Preset Name"
+            className="border border-eq-yellow px-1.5 rounded text-sm w-24"
+          />
 
-        <button className="px-2 py-1 border border-eq-yellow rounded">
-          + Save Preset
-        </button>
+          <button className="px-1.5 border border-eq-yellow rounded">
+            + Save Preset
+          </button>
 
-        <button className="px-2 py-1 border border-eq-yellow rounded">
-          - Delete Preset
-        </button>
+          <button className="px-1.5 border border-eq-yellow rounded">
+            - Delete Preset
+          </button>
 
-        <button className="px-2 py-1 border border-eq-yellow rounded">
-          Reset Filters
-        </button>
+          <button className="px-1.5 border border-eq-yellow rounded">
+            Reset Filters
+          </button>
+        </div>
 
-        <div className="ml-auto flex gap-2">
-          <button className="px-2 py-1 border border-eq-yellow rounded">
+        {/* Bottom row: quick presets (right aligned) */}
+        <div className="flex justify-end gap-2 mt-2 flex-wrap">
+          <button className="px-1.5 border border-eq-yellow rounded">
             Bass Boost
           </button>
 
-          <button className="px-2 py-1 border border-eq-yellow rounded">
+          <button className="px-1.5 border border-eq-yellow rounded">
             YouTube
           </button>
         </div>
       </div>
 
       {/* ================= FOOTER ================= */}
-      <footer className="absolute bottom-0 left-0 right-0 px-4 py-2 text-sm border-t border-red-600">
+      <footer className="absolute bottom-0 left-0 right-0 px-3 py-2 text-sm border-t border-red-600">
         {/* Centered primary action */}
         <div className="flex justify-center mb-2">
-          <button className="px-2 py-1 border border-eq-yellow rounded">
+          <button className="px-1.5 border border-eq-yellow rounded">
             Stop EQing This Tab
           </button>
         </div>
