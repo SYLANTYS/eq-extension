@@ -8,3 +8,11 @@
   --color-eq-point: rgb(198 246 221);
   --color-eq-shelf: rgb(138 104 158);
 }
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
