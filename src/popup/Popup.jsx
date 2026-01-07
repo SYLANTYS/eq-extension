@@ -47,7 +47,7 @@ export default function Popup() {
             {/* ===== LEFT: VOLUME CONTROLS ===== */}
             <div className="flex flex-col items-center">
               <div className="text-xs mb-2">volume</div>
-              <div className="h-60 w-0.75 bg-eq-yellow/20 rounded relative">
+              <div className="h-60 w-px bg-eq-yellow/50 rounded relative">
                 {/* volume thumb placeholder */}
                 <div className="absolute bottom-1/2 w-9 h-1.5 bg-eq-yellow -left-4.25" />
               </div>

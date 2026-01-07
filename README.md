@@ -45,9 +45,9 @@ Load in Chrome:
 
 ## TODO
 
-- Canvas sizing + DPI safety
-- Popup → background messaging
-- Offscreen document lifecycle
+- Popup → background messaging (initalize background)
+- Offscreen document lifecycle (initalize offscreen)
+- (initalize content)
 - Tab audio capture
 - Web Audio EQ graph
 - Draw EQ grid and curve
