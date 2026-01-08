@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 export default function Popup() {
   const [volume, setVolumeState] = useState(1);
+  const [eqActive, setEqActive] = useState(true);
 
   // Sends a message to the background script and awaits a response.
   function sendMessage(msg) {
@@ -35,10 +36,16 @@ export default function Popup() {
     );
   }
 
-  // Stops EQ processing for the current tab.
+  // Starts EQ processing for the active tab.
+  async function startEq() {
+    const res = await sendMessage({ type: "START_EQ" });
+    if (res?.ok) setEqActive(true);
+  }
+
+  // Stops EQ processing for the active tab.
   async function stopEq() {
     const res = await sendMessage({ type: "STOP_EQ" });
-    console.log("[POPUP] STOP_EQ response:", res);
+    if (res?.ok) setEqActive(false);
   }
 
   // Sets the master volume in the offscreen audio context.
@@ -63,8 +70,14 @@ export default function Popup() {
 
       if (cancelled) return;
 
+      const status = await sendMessage({ type: "GET_EQ_STATUS" });
+      if (status?.active) {
+        setEqActive(true);
+        return; // already running, don’t auto-start again
+      }
+
       const res = await sendMessage({ type: "START_EQ" });
-      console.log("[POPUP] START_EQ response:", res);
+      if (res?.ok) setEqActive(true);
     }
 
     boot();
@@ -183,10 +196,10 @@ export default function Popup() {
         {/* Centered primary action */}
         <div className="flex justify-center mb-5">
           <button
-            onClick={stopEq}
+            onClick={eqActive ? stopEq : startEq}
             className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
           >
-            Stop EQing This Tab
+            {eqActive ? "Stop EQing This Tab" : "Start EQing This Tab"}
           </button>
         </div>
 
