@@ -1,4 +1,79 @@
+import { useEffect, useState } from "react";
+
 export default function Popup() {
+  const [volume, setVolumeState] = useState(1);
+
+  // Sends a message to the background script and awaits a response.
+  function sendMessage(msg) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(msg, (res) => {
+        const err = chrome.runtime.lastError;
+        if (err) return resolve({ ok: false, error: err.message });
+        resolve(res ?? { ok: true });
+      });
+    });
+  }
+
+  // Handles volume slider mouse down event.
+  function handleVolumeStart(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    function move(ev) {
+      const y = ev.clientY - rect.top;
+      const ratio = 1 - Math.min(Math.max(y / rect.height, 0), 1);
+      const gain = ratio * 2;
+
+      setVolumeState(gain);
+      setVolume(gain);
+    }
+
+    window.addEventListener("mousemove", move);
+    window.addEventListener(
+      "mouseup",
+      () => window.removeEventListener("mousemove", move),
+      { once: true }
+    );
+  }
+
+  // Stops EQ processing for the current tab.
+  async function stopEq() {
+    const res = await sendMessage({ type: "STOP_EQ" });
+    console.log("[POPUP] STOP_EQ response:", res);
+  }
+
+  // Sets the master volume in the offscreen audio context.
+  async function setVolume(value) {
+    await sendMessage({
+      type: "SET_VOLUME",
+      value,
+    });
+  }
+
+  // On mount, ping background until it's ready, then start EQ for active tab.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function boot() {
+      for (let i = 0; i < 40; i++) {
+        if (cancelled) return;
+        const ping = await sendMessage({ type: "PING_BG" });
+        if (ping?.ok) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+
+      if (cancelled) return;
+
+      const res = await sendMessage({ type: "START_EQ" });
+      console.log("[POPUP] START_EQ response:", res);
+    }
+
+    boot();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="w-[800px] h-[600px] overflow-hidden bg-eq-blue text-eq-yellow flex flex-col relative">
       <div className="flex-1 overflow-y-auto pb-22.5 scrollbar-none">
@@ -46,10 +121,15 @@ export default function Popup() {
             </button>
             {/* ===== LEFT: VOLUME CONTROLS ===== */}
             <div className="flex flex-col items-center">
-              <div className="text-xs mb-2">volume</div>
-              <div className="h-60 w-px bg-eq-yellow/50 rounded relative">
-                {/* volume thumb placeholder */}
-                <div className="absolute bottom-1/2 w-9 h-1.5 bg-eq-yellow -left-4.25" />
+              <div className="text-xs mb-2 select-none">volume</div>
+              <div
+                className="h-60 w-px bg-eq-yellow/50 rounded relative"
+                onMouseDown={handleVolumeStart}
+              >
+                <div
+                  className="absolute w-9 h-1.5 bg-eq-yellow -left-4.25"
+                  style={{ bottom: `${volume * 50}%` }}
+                />
               </div>
             </div>
           </aside>
@@ -102,7 +182,10 @@ export default function Popup() {
       <footer className="absolute bottom-0 left-0 right-0 px-3 py-2 text-sm bg-eq-blue/90">
         {/* Centered primary action */}
         <div className="flex justify-center mb-5">
-          <button className="px-1.5 border border-eq-yellow rounded-xs">
+          <button
+            onClick={stopEq}
+            className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+          >
             Stop EQing This Tab
           </button>
         </div>
