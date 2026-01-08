@@ -5,13 +5,17 @@
 // - Manage offscreen document lifecycle
 // - Capture tab audio permissions
 // - Relay control messages between popup and offscreen
-// This file NEVER touches Web Audio directly.
 
 console.log("[BG] Service worker loaded");
 
-// Guard to prevent concurrent START_EQ calls.
+// Map<tabId, { streamId, status }> — tracks EQ sessions per tab.
+// Multiple tabs can have active EQ simultaneously.
+// This is the single source of truth for EQ state.
+const eqSessions = new Map();
+
+// Guard to prevent concurrent START_EQ calls for the same tab.
 // Important because popup clicks and MV3 wakeups can overlap.
-let starting = false;
+const startingTabs = new Set();
 
 // Ensure an offscreen document exists.
 // Offscreen documents are required in MV3 for audio processing.
@@ -42,54 +46,85 @@ function sendToOffscreen(msg) {
   });
 }
 
-// Starts EQ processing for the currently active tab.
+// Starts EQ processing for a specific tab.
 // This function:
-// 1) Ensures offscreen exists
-// 2) Identifies the active tab
-// 3) Requests a tab audio stream ID
-// 4) Delegates audio initialization to offscreen
-async function startEqForActiveTab() {
-  // Prevent re-entrancy / race conditions
-  if (starting) return { ok: true, alreadyStarting: true };
-  starting = true;
+// 1) Ensures offscreen exists (shared across all tabs)
+// 2) Requests a tab audio stream ID
+// 3) Delegates audio initialization to offscreen for this tabId
+async function startEqForTab(tabId) {
+  // Prevent re-entrancy / race conditions per tab
+  if (startingTabs.has(tabId)) return { ok: true, alreadyStarting: true };
+  startingTabs.add(tabId);
 
   try {
     // Guarantee offscreen document is alive before capture
     await ensureOffscreen();
 
-    // Get the active tab in the current window
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    if (!tab?.id) return { ok: false, error: "No active tab" };
+    if (!tabId) return { ok: false, error: "No tab ID provided" };
 
-    console.log("[BG] Starting EQ for tab:", tab.id);
+    // Check if EQ is already active for this tab
+    if (eqSessions.has(tabId)) {
+      console.log("[BG] EQ already active for tab:", tabId);
+      return { ok: true, alreadyActive: true };
+    }
+
+    console.log("[BG] Starting EQ for tab:", tabId);
 
     // Request a streamId token for tab audio capture.
     // This does NOT start playback — it only grants permission.
     const streamId = await chrome.tabCapture.getMediaStreamId({
-      targetTabId: tab.id,
+      targetTabId: tabId,
     });
 
-    // Ask offscreen to initialize its audio graph using the streamId.
+    // Register this tab as having an active EQ session
+    eqSessions.set(tabId, { streamId, status: "starting" });
+
+    // Ask offscreen to initialize audio graph for this specific tabId.
     // We await acknowledgment to ensure audio is fully ready.
     const res = await sendToOffscreen({
       type: "INIT_AUDIO",
       streamId,
-      tabId: tab.id,
+      tabId,
     });
 
-    console.log("[BG] Offscreen INIT_AUDIO ack:", res);
+    console.log("[BG] Offscreen INIT_AUDIO ack for tab", tabId, ":", res);
+
+    if (res?.ok) {
+      eqSessions.get(tabId).status = "active";
+    }
+
     return { ok: true };
   } catch (e) {
-    console.warn("[BG] startEqForActiveTab failed:", e);
+    console.warn("[BG] startEqForTab failed:", e);
+    eqSessions.delete(tabId);
     return { ok: false, error: String(e?.message || e) };
   } finally {
-    // Always release the re-entrancy lock
-    starting = false;
+    // Always release the re-entrancy lock for this tab
+    startingTabs.delete(tabId);
   }
 }
+
+// Listen for tab closes and clean up EQ sessions for closed tabs.
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (eqSessions.has(tabId)) {
+    console.log("[BG] Tab removed, cleaning up EQ for tab:", tabId);
+
+    (async () => {
+      try {
+        // Wait for offscreen to fully cleanup this tab's audio
+        await sendToOffscreen({
+          type: "STOP_EQ",
+          tabId,
+        });
+
+        eqSessions.delete(tabId);
+      } catch (e) {
+        console.warn("[BG] Failed to cleanup tab", tabId, ":", e);
+        eqSessions.delete(tabId); // Cleanup session even on error
+      }
+    })();
+  }
+});
 
 // Central message router for popup → background → offscreen.
 // This listener must be synchronous in structure but can
@@ -108,11 +143,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // =====================
   // START_EQ
   // =====================
-  // Initiates EQ processing for the active tab.
-  // Safe to call multiple times due to internal guards.
+  // Initiates EQ processing for a specific tab.
+  // Message must include tabId. Safe to call multiple times due to internal guards.
   if (msg?.type === "START_EQ") {
     (async () => {
-      const result = await startEqForActiveTab();
+      const tabId = msg.tabId;
+      const result = await startEqForTab(tabId);
       sendResponse(result);
     })();
     return true; // keep message port open
@@ -121,20 +157,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // =====================
   // STOP_EQ
   // =====================
-  // Fully stops audio processing and releases all resources.
+  // Stops EQ processing for a specific tab.
   // This includes:
-  // - Tearing down the audio graph (offscreen)
-  // - Releasing tab capture
-  // - Explicitly closing the offscreen document
+  // - Tearing down the tab's audio graph (offscreen)
+  // - Removing the tab from the sessions map
+  // - Closing offscreen ONLY if no tabs remain active
   if (msg?.type === "STOP_EQ") {
     (async () => {
-      try {
-        // Ask offscreen to stop audio and release media tracks
-        const res = await sendToOffscreen({ type: "STOP_EQ" });
+      const tabId = msg.tabId;
 
-        // Explicitly destroy the offscreen document.
-        // This guarantees Chrome releases all offscreen resources.
-        await chrome.offscreen.closeDocument();
+      try {
+        // Remove from sessions before cleanup
+        eqSessions.delete(tabId);
+
+        // Ask offscreen to stop audio and release media tracks for this tab
+        const res = await sendToOffscreen({
+          type: "STOP_EQ",
+          tabId,
+        });
 
         sendResponse(res ?? { ok: true });
       } catch (e) {
@@ -147,12 +187,32 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // =====================
   // SET_VOLUME
   // =====================
-  // Forward volume updates directly to offscreen.
+  // Forward volume updates directly to offscreen for a specific tab.
   // Background does not interpret or store volume values.
   if (msg?.type === "SET_VOLUME") {
-    chrome.runtime.sendMessage({ type: "SET_VOLUME", value: msg.value }, () => {
-      sendResponse({ ok: true });
-    });
+    (async () => {
+      try {
+        const res = await sendToOffscreen({
+          type: "SET_VOLUME",
+          value: msg.value,
+          tabId: msg.tabId,
+        });
+        sendResponse(res ?? { ok: true });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    })();
+    return true;
+  }
+
+  // =====================
+  // GET_EQ_STATUS
+  // =====================
+  // Returns whether EQ is active for a specific tab.
+  if (msg?.type === "GET_EQ_STATUS") {
+    const tabId = msg.tabId;
+    const isActive = eqSessions.has(tabId);
+    sendResponse({ ok: true, active: isActive });
     return true;
   }
 });

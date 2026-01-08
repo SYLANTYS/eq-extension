@@ -5,47 +5,50 @@
 
 console.log("[OFFSCREEN] Offscreen audio script loaded");
 
-// Persistent audio state for the lifetime of the offscreen document.
-// These variables survive popup open/close and background idle.
-let audioContext; // Web Audio context (must live in offscreen in MV3)
-let sourceNode; // MediaStreamAudioSourceNode (tab audio input)
-let gainNode; // Master volume control
-let currentTabId; // Tab currently being processed
-let mediaStream; // Raw MediaStream from tabCapture (must be stopped explicitly)
+// Map<tabId, { audioContext, sourceNode, gainNode, mediaStream }>
+// Stores isolated audio graphs, one per tab.
+// Multiple tabs can have active audio simultaneously.
+const audioGraphs = new Map();
 
 // Runtime message handler for background → offscreen control messages.
 // Wrapped in an async IIFE to allow `await` inside.
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
+    const tabId = msg?.tabId;
+
     // =====================
     // INIT_AUDIO
     // =====================
-    // Creates the audio pipeline for the active tab.
-    // This should only run once per EQ session.
+    // Creates the audio pipeline for a specific tab.
+    // Multiple tabs can have independent audio graphs simultaneously.
     if (msg?.type === "INIT_AUDIO") {
       try {
-        // Guard against double initialization
-        // (prevents multiple AudioContexts and duplicate capture)
-        if (audioContext) {
-          console.log("[OFFSCREEN] Audio already initialized");
+        // Guard against double initialization for the same tab
+        if (audioGraphs.has(tabId)) {
+          console.log("[OFFSCREEN] Audio already initialized for tab", tabId);
           sendResponse({
             ok: true,
             alreadyInitialized: true,
-            tabId: currentTabId,
+            tabId,
           });
           return;
         }
 
-        console.log("[OFFSCREEN] Initializing AudioContext…");
+        if (!tabId) {
+          sendResponse({ ok: false, error: "No tabId provided" });
+          return;
+        }
 
-        // Create the Web Audio context.
+        console.log("[OFFSCREEN] Initializing AudioContext for tab", tabId);
+
+        // Create a Web Audio context for this tab.
         // Chrome may start it in a suspended state, so we resume explicitly.
-        audioContext = new AudioContext();
+        const audioContext = new AudioContext();
         await audioContext.resume(); // avoids silent-audio edge cases
 
         // Capture audio from the specified tab using the streamId
         // provided by chrome.tabCapture.getMediaStreamId().
-        mediaStream = await navigator.mediaDevices.getUserMedia({
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             mandatory: {
               chromeMediaSource: "tab",
@@ -54,13 +57,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           },
         });
 
-        // Track which tab this EQ instance belongs to
-        currentTabId = msg.tabId;
-
-        // Build the audio graph:
+        // Build the audio graph for this tab:
         // Tab Audio → Gain → Speakers
-        sourceNode = audioContext.createMediaStreamSource(mediaStream);
-        gainNode = audioContext.createGain();
+        const sourceNode = audioContext.createMediaStreamSource(mediaStream);
+        const gainNode = audioContext.createGain();
 
         // Unity gain by default (no volume change)
         gainNode.gain.value = 1.0;
@@ -68,16 +68,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sourceNode.connect(gainNode);
         gainNode.connect(audioContext.destination);
 
+        // Store this tab's audio graph
+        audioGraphs.set(tabId, {
+          audioContext,
+          sourceNode,
+          gainNode,
+          mediaStream,
+        });
+
         console.log(
-          "[OFFSCREEN] Audio pipeline ready (source → gain → destination)"
+          "[OFFSCREEN] Audio pipeline ready for tab",
+          tabId,
+          "(source → gain → destination)"
         );
 
-        // Acknowledge successful initialization back to background
-        sendResponse({ ok: true, tabId: currentTabId });
+        sendResponse({ ok: true, tabId });
         return;
       } catch (e) {
-        // Any failure here means audio capture or graph creation failed
-        console.warn("[OFFSCREEN] INIT_AUDIO failed:", e);
+        console.warn("[OFFSCREEN] INIT_AUDIO failed for tab", tabId, ":", e);
         sendResponse({ ok: false, error: String(e?.message || e) });
         return;
       }
@@ -86,12 +94,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // =====================
     // SET_VOLUME
     // =====================
-    // Adjusts master gain in real time.
+    // Adjusts master gain for a specific tab in real time.
     // Does NOT recreate audio or affect capture lifecycle.
     if (msg?.type === "SET_VOLUME") {
-      if (gainNode) {
+      const graph = audioGraphs.get(tabId);
+      if (graph?.gainNode) {
         // Set gain immediately at the current audio time
-        gainNode.gain.setValueAtTime(msg.value, audioContext.currentTime);
+        graph.gainNode.gain.setValueAtTime(
+          msg.value,
+          graph.audioContext.currentTime
+        );
       }
       sendResponse({ ok: true });
       return;
@@ -100,37 +112,45 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // =====================
     // STOP_EQ
     // =====================
-    // Fully tears down the audio pipeline AND releases tab capture.
-    // Stopping MediaStream tracks is critical to release Chrome’s
-    // “tab is being shared” state.
+    // Fully tears down the audio pipeline for a specific tab.
+    // Does NOT affect other tabs' audio graphs.
+    // Stopping MediaStream tracks is critical to release Chrome's
+    // "tab is being shared" state.
     if (msg?.type === "STOP_EQ") {
       try {
-        // Disconnect audio nodes first
-        if (sourceNode) sourceNode.disconnect();
-        if (gainNode) gainNode.disconnect();
+        const graph = audioGraphs.get(tabId);
 
-        // Explicitly stop all media tracks
+        if (!graph) {
+          console.log("[OFFSCREEN] No audio graph found for tab", tabId);
+          sendResponse({ ok: true });
+          return;
+        }
+
+        // Disconnect audio nodes for this tab
+        if (graph.sourceNode) graph.sourceNode.disconnect();
+        if (graph.gainNode) graph.gainNode.disconnect();
+
+        // Explicitly stop all media tracks for this tab
         // (closing AudioContext alone is NOT enough)
-        if (mediaStream) {
-          mediaStream.getTracks().forEach((track) => track.stop());
-          mediaStream = null;
+        if (graph.mediaStream) {
+          graph.mediaStream.getTracks().forEach((track) => track.stop());
         }
 
-        // Close the AudioContext to release audio resources
-        if (audioContext) {
-          await audioContext.close();
+        // Close the AudioContext for this tab
+        if (graph.audioContext) {
+          await graph.audioContext.close();
         }
 
-        // Reset all state so EQ can be cleanly restarted
-        audioContext = null;
-        sourceNode = null;
-        gainNode = null;
-        currentTabId = null;
+        // Remove from map
+        audioGraphs.delete(tabId);
 
-        console.log("[OFFSCREEN] Audio + tab capture fully released");
+        console.log(
+          "[OFFSCREEN] Audio + tab capture fully released for tab",
+          tabId
+        );
         sendResponse({ ok: true });
       } catch (e) {
-        console.warn("[OFFSCREEN] STOP_EQ failed:", e);
+        console.warn("[OFFSCREEN] STOP_EQ failed for tab", tabId, ":", e);
         sendResponse({ ok: false, error: String(e?.message || e) });
       }
       return;

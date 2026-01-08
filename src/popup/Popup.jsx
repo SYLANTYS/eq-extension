@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 export default function Popup() {
   const [volume, setVolumeState] = useState(1);
   const [eqActive, setEqActive] = useState(true);
+  const [currentTabId, setCurrentTabId] = useState(null);
 
   // Sends a message to the background script and awaits a response.
   function sendMessage(msg) {
@@ -38,13 +39,13 @@ export default function Popup() {
 
   // Starts EQ processing for the active tab.
   async function startEq() {
-    const res = await sendMessage({ type: "START_EQ" });
+    const res = await sendMessage({ type: "START_EQ", tabId: currentTabId });
     if (res?.ok) setEqActive(true);
   }
 
   // Stops EQ processing for the active tab.
   async function stopEq() {
-    const res = await sendMessage({ type: "STOP_EQ" });
+    const res = await sendMessage({ type: "STOP_EQ", tabId: currentTabId });
     if (res?.ok) setEqActive(false);
   }
 
@@ -53,6 +54,7 @@ export default function Popup() {
     await sendMessage({
       type: "SET_VOLUME",
       value,
+      tabId: currentTabId,
     });
   }
 
@@ -61,6 +63,17 @@ export default function Popup() {
     let cancelled = false;
 
     async function boot() {
+      // Get the current active tab
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+
+      if (cancelled || !tab?.id) return;
+
+      setCurrentTabId(tab.id);
+
+      // Ping background until it's ready
       for (let i = 0; i < 40; i++) {
         if (cancelled) return;
         const ping = await sendMessage({ type: "PING_BG" });
@@ -70,13 +83,18 @@ export default function Popup() {
 
       if (cancelled) return;
 
-      const status = await sendMessage({ type: "GET_EQ_STATUS" });
+      const status = await sendMessage({
+        type: "GET_EQ_STATUS",
+        tabId: tab.id,
+      });
+
       if (status?.active) {
         setEqActive(true);
-        return; // already running, don’t auto-start again
+        return; // already running, don't auto-start again
       }
 
-      const res = await sendMessage({ type: "START_EQ" });
+      // Auto-start EQ for this tab if not already active
+      const res = await sendMessage({ type: "START_EQ", tabId: tab.id });
       if (res?.ok) setEqActive(true);
     }
 
@@ -141,7 +159,7 @@ export default function Popup() {
               >
                 <div
                   className="absolute w-9 h-1.5 bg-eq-yellow -left-4.25"
-                  style={{ bottom: `${volume * 50}%` }}
+                  style={{ bottom: `${Math.min(volume, 2) * 50}%` }}
                 />
               </div>
             </div>
