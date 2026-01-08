@@ -45,13 +45,9 @@ Load in Chrome:
 
 ## TODO
 
-- Popup → background messaging (initalize background)
-- Offscreen document lifecycle (initalize offscreen)
-- (initalize content)
-- Tab audio capture
+- Volume changes work in multiple tabs
 - Web Audio EQ graph
 - Draw EQ grid and curve
 - Draggable EQ points
-- Per-tab state persistence
 - Presets (save / delete / reset)
 - Full-window EQ view
