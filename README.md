@@ -45,7 +45,9 @@ Load in Chrome:
 
 ## TODO
 
-- Volume changes work in multiple tabs
+- Tabs toggle "Main Body" div (control, guide, active tabs)
+  - guide: copy from html
+  - active tabs: provide title, favicon, and stop eqing button for tab
 - Web Audio EQ graph
 - Draw EQ grid and curve
 - Draggable EQ points
