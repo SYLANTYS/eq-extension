@@ -110,6 +110,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     // =====================
+    // GET_VOLUME
+    // =====================
+    // Returns the current gain value for a specific tab.
+    if (msg?.type === "GET_VOLUME") {
+      const graph = audioGraphs.get(tabId);
+      const gain = graph?.gainNode?.gain.value ?? 1.0;
+      sendResponse({ ok: true, gain });
+      return;
+    }
+
+    // =====================
     // STOP_EQ
     // =====================
     // Fully tears down the audio pipeline for a specific tab.

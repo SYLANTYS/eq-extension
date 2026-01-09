@@ -215,4 +215,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: true, active: isActive });
     return true;
   }
+
+  // =====================
+  // GET_VOLUME
+  // =====================
+  // Forward volume query to offscreen for a specific tab.
+  if (msg?.type === "GET_VOLUME") {
+    (async () => {
+      try {
+        const res = await sendToOffscreen({
+          type: "GET_VOLUME",
+          tabId: msg.tabId,
+        });
+        sendResponse(res ?? { ok: true, gain: 1.0 });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    })();
+    return true;
+  }
 });

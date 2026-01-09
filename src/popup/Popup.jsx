@@ -5,6 +5,14 @@ export default function Popup() {
   const [eqActive, setEqActive] = useState(true);
   const [currentTabId, setCurrentTabId] = useState(null);
 
+  // Converts gain to slider visual position (0-100%)
+  function getSliderPosition(gain) {
+    if (gain === 0) return 0;
+    const db = 20 * Math.log10(gain);
+    const ratio = (db + 30) / 40;
+    return Math.min(Math.max(ratio, 0), 1) * 100;
+  }
+
   // Sends a message to the background script and awaits a response.
   function sendMessage(msg) {
     return new Promise((resolve) => {
@@ -23,7 +31,18 @@ export default function Popup() {
     function move(ev) {
       const y = ev.clientY - rect.top;
       const ratio = 1 - Math.min(Math.max(y / rect.height, 0), 1);
-      const gain = ratio * 2;
+
+      // Map ratio [0, 1] to dB [-30, 10]
+      // At ratio=0 (bottom): gain=0
+      // At ratio=0.75 (3/4 up): gain=1 (0dB)
+      // At ratio=1 (top): gain≈3.162 (+10dB)
+      let gain;
+      if (ratio === 0) {
+        gain = 0;
+      } else {
+        const db = -30 + ratio * 40;
+        gain = Math.pow(10, db / 20);
+      }
 
       setVolumeState(gain);
       setVolume(gain);
@@ -40,13 +59,19 @@ export default function Popup() {
   // Starts EQ processing for the active tab.
   async function startEq() {
     const res = await sendMessage({ type: "START_EQ", tabId: currentTabId });
-    if (res?.ok) setEqActive(true);
+    if (res?.ok) {
+      setEqActive(true);
+      setVolumeState(1);
+    }
   }
 
   // Stops EQ processing for the active tab.
   async function stopEq() {
     const res = await sendMessage({ type: "STOP_EQ", tabId: currentTabId });
-    if (res?.ok) setEqActive(false);
+    if (res?.ok) {
+      setEqActive(false);
+      setVolumeState(1);
+    }
   }
 
   // Sets the master volume in the offscreen audio context.
@@ -73,6 +98,16 @@ export default function Popup() {
 
       setCurrentTabId(tab.id);
 
+      // Get the current volume for this tab
+      const volumeStatus = await sendMessage({
+        type: "GET_VOLUME",
+        tabId: tab.id,
+      });
+
+      if (volumeStatus?.ok && volumeStatus?.gain) {
+        setVolumeState(volumeStatus.gain);
+      }
+
       // Ping background until it's ready
       for (let i = 0; i < 40; i++) {
         if (cancelled) return;
@@ -90,6 +125,7 @@ export default function Popup() {
 
       if (status?.active) {
         setEqActive(true);
+
         return; // already running, don't auto-start again
       }
 
@@ -159,7 +195,7 @@ export default function Popup() {
               >
                 <div
                   className="absolute w-9 h-1.5 bg-eq-yellow -left-4.25"
-                  style={{ bottom: `${Math.min(volume, 2) * 50}%` }}
+                  style={{ bottom: `${getSliderPosition(volume)}%` }}
                 />
               </div>
             </div>
