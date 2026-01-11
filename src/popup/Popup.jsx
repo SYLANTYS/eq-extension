@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
+import Controls from "./components/Controls";
+import Guide from "./components/Guide";
+import ActiveTabs from "./components/ActiveTabs";
+import Pro from "./components/Pro";
 
 export default function Popup() {
   const [volume, setVolumeState] = useState(1);
   const [eqActive, setEqActive] = useState(true);
   const [currentTabId, setCurrentTabId] = useState(null);
-
-  // Converts gain to slider visual position (0-100%)
-  function getSliderPosition(gain) {
-    if (gain === 0) return 0;
-    const db = 20 * Math.log10(gain);
-    const ratio = (db + 30) / 40;
-    return Math.min(Math.max(ratio, 0), 1) * 100;
-  }
+  const [activeTab, setActiveTab] = useState("Controls");
 
   // Sends a message to the background script and awaits a response.
   function sendMessage(msg) {
@@ -29,7 +26,7 @@ export default function Popup() {
     const rect = e.currentTarget.getBoundingClientRect();
 
     function move(ev) {
-      const y = ev.clientY - rect.top;
+      const y = ev.clientY - rect.top + 3;
       const ratio = 1 - Math.min(Math.max(y / rect.height, 0), 1);
 
       // Map ratio [0, 1] to dB [-30, 10]
@@ -44,7 +41,7 @@ export default function Popup() {
         gain = Math.pow(10, db / 20);
       }
 
-      setVolumeState(gain);
+      setVolumeState(gain); // slight offset for better UX
       setVolume(gain);
     }
 
@@ -142,7 +139,7 @@ export default function Popup() {
   }, []);
 
   return (
-    <div className="w-[800px] h-[600px] overflow-hidden bg-eq-blue text-eq-yellow flex flex-col relative">
+    <div className="min-w-[800px] min-h-[600px] h-screen w-full overflow-hidden bg-eq-blue text-eq-yellow flex flex-col relative">
       <div className="flex-1 overflow-y-auto pb-22.5 scrollbar-none">
         {/* ================= HEADER ================= */}
         <header className="flex items-center justify-between px-3 py-2 mb-2">
@@ -164,51 +161,56 @@ export default function Popup() {
         {/* ================= TABS / TOP CONTROLS ================= */}
         <div className="pl-13">
           <div className="flex gap-1 py-0.5 text-sm">
-            <button className="px-2 py-0.5 border border-eq-yellow rounded-t-lg">
+            <button
+              onClick={() => setActiveTab("Controls")}
+              className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
+                activeTab === "Controls"
+                  ? "text-eq-blue bg-eq-yellow"
+                  : "hover:text-eq-blue hover:bg-eq-yellow"
+              }`}
+            >
               Controls
             </button>
-            <button className="px-2 py-0.5 border border-eq-yellow rounded-t-lg">
+            <button
+              onClick={() => setActiveTab("Guide")}
+              className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
+                activeTab === "Guide"
+                  ? "text-eq-blue bg-eq-yellow"
+                  : "hover:text-eq-blue hover:bg-eq-yellow"
+              }`}
+            >
               Guide
             </button>
-            <button className="px-2 py-0.5 border border-eq-yellow rounded-t-lg">
+            <button
+              onClick={() => setActiveTab("ActiveTabs")}
+              className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
+                activeTab === "ActiveTabs"
+                  ? "text-eq-blue bg-eq-yellow"
+                  : "hover:text-eq-blue hover:bg-eq-yellow"
+              }`}
+            >
               Active Tabs
             </button>
-            <button className="px-2 py-0.5 border border-eq-yellow rounded-t-lg">
+            <button
+              onClick={() => setActiveTab("Pro")}
+              className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
+                activeTab === "Pro"
+                  ? "text-eq-blue bg-eq-yellow"
+                  : "hover:text-eq-blue hover:bg-eq-yellow"
+              }`}
+            >
               Pro
             </button>
           </div>
         </div>
 
         {/* ================= MAIN BODY ================= */}
-        <div className="flex overflow-hidden">
-          <aside className="w-12 ml-1 flex flex-col items-center justify-between">
-            {/* Rotated spectrum button */}
-            <button className="my-6 text-xs -rotate-90 border border-eq-yellow px-2 rounded-b-sm rounded-t-xs">
-              Spectrum Visualizer
-            </button>
-            {/* ===== LEFT: VOLUME CONTROLS ===== */}
-            <div className="flex flex-col items-center">
-              <div className="text-xs mb-2 select-none">volume</div>
-              <div
-                className="h-60 w-px bg-eq-yellow/50 rounded relative"
-                onMouseDown={handleVolumeStart}
-              >
-                <div
-                  className="absolute w-9 h-1.5 bg-eq-yellow -left-4.25"
-                  style={{ bottom: `${getSliderPosition(volume)}%` }}
-                />
-              </div>
-            </div>
-          </aside>
-
-          {/* ===== CENTER: EQ CANVAS ===== */}
-          <main className="w-[730px] h-[365px] relative">
-            <div className="absolute inset-0 flex items-center justify-center border border-eq-yellow/50">
-              {/* Replace this with <canvas /> later 750px by 380px */}
-              EQ Canvas Area
-            </div>
-          </main>
-        </div>
+        {activeTab === "Controls" && (
+          <Controls volume={volume} onVolumeStart={handleVolumeStart} />
+        )}
+        {activeTab === "Guide" && <Guide />}
+        {activeTab === "ActiveTabs" && <ActiveTabs />}
+        {activeTab === "Pro" && <Pro />}
 
         {/* ================= PRESET BUTTONS ================= */}
         <div className="px-3 py-1 text-sm">
@@ -264,7 +266,13 @@ export default function Popup() {
           </div>
 
           <div className="text-eq-yellow">
-            <u>Open in Full Window</u>
+            <a
+              href="chrome-extension://efnhmajdoaaiohaagokccdjbaibhofno/popup/index.html"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <u>Open in Full Window</u>
+            </a>
           </div>
         </div>
       </footer>
