@@ -49,3 +49,4 @@ Load in Chrome:
 - Draw EQ grid and curve
 - Draggable EQ points
 - Presets (save / delete / reset)
+- Pro Tab
