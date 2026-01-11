@@ -17,6 +17,51 @@ const eqSessions = new Map();
 // Important because popup clicks and MV3 wakeups can overlap.
 const startingTabs = new Set();
 
+// MV3 NOTE (IMPORTANT):
+// Background service worker is ephemeral and loses memory after ~30s idle.
+// Offscreen audio graphs may still be alive when this file reloads.
+// On startup, immediately query offscreen for currently active tabIds
+// and rehydrate eqSessions from that response.
+// eqSessions must be rebuilt from offscreen state on every service worker load.
+async function rehydrateEqSessions() {
+  try {
+    console.log("[BG] Rehydrating eqSessions from offscreen...");
+
+    const res = await new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: "GET_ACTIVE_TABS" }, (response) => {
+        const err = chrome.runtime.lastError;
+        if (err) return reject(err);
+        resolve(response);
+      });
+    });
+
+    if (res?.ok && Array.isArray(res?.tabIds)) {
+      res.tabIds.forEach((tabId) => {
+        // Reconstruct session entry with status "active"
+        // (we don't have the original streamId, but that's okay—
+        // offscreen already has the active audio graph)
+        eqSessions.set(tabId, { streamId: null, status: "active" });
+      });
+      console.log("[BG] Rehydrated eqSessions for", res.tabIds.length, "tabs");
+    }
+  } catch (e) {
+    console.warn("[BG] Failed to rehydrate eqSessions:", e);
+    // Continue anyway; if offscreen is not ready, queries will fail gracefully
+  }
+}
+
+// Rehydrate on service worker startup
+(async () => {
+  try {
+    // Ensure offscreen exists before querying it
+    await ensureOffscreen();
+    // Now safely rehydrate
+    await rehydrateEqSessions();
+  } catch (e) {
+    console.warn("[BG] Startup rehydration failed:", e);
+  }
+})();
+
 // Ensure an offscreen document exists.
 // Offscreen documents are required in MV3 for audio processing.
 // This function is idempotent and safe to call multiple times.
@@ -232,6 +277,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok: false, error: String(e?.message || e) });
       }
     })();
+    return true;
+  }
+
+  // =====================
+  // GET_ALL_ACTIVE_TABS
+  // =====================
+  // Returns an array of all tab IDs with active EQ sessions.
+  if (msg?.type === "GET_ALL_ACTIVE_TABS") {
+    const activeTabIds = Array.from(eqSessions.keys());
+    sendResponse({ ok: true, tabIds: activeTabIds });
     return true;
   }
 });

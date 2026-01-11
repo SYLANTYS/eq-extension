@@ -140,7 +140,7 @@ export default function Popup() {
 
   return (
     <div className="min-w-[800px] min-h-[600px] h-screen w-full overflow-hidden bg-eq-blue text-eq-yellow flex flex-col relative">
-      <div className="flex-1 overflow-y-auto pb-22.5 scrollbar-none">
+      <div className="flex-1 overflow-y-auto pb-19.5 scrollbar-none">
         {/* ================= HEADER ================= */}
         <header className="flex items-center justify-between px-3 py-2 mb-2">
           <div className="text-3xl font-bold">Ears Audio Toolkit</div>

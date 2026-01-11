@@ -168,6 +168,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     // =====================
+    // GET_ACTIVE_TABS
+    // =====================
+    // Returns the list of tabIds that currently have active audio graphs.
+    // Used by background worker on startup to rehydrate eqSessions
+    // after service worker reload.
+    if (msg?.type === "GET_ACTIVE_TABS") {
+      const activeTabIds = Array.from(audioGraphs.keys());
+      sendResponse({ ok: true, tabIds: activeTabIds });
+      return;
+    }
+
+    // =====================
     // Fallback
     // =====================
     // Gracefully ignore unknown messages to avoid
