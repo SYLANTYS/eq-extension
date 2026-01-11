@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 export default function ActiveTabs() {
   const [activeTabs, setActiveTabs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Sends a message to the background script and awaits a response.
   function sendMessage(msg) {
@@ -14,26 +15,30 @@ export default function ActiveTabs() {
     });
   }
 
-  // Fetch all active tabs and their details on mount
-  useEffect(() => {
-    async function loadActiveTabs() {
-      try {
-        // Get all tab IDs with active EQ
-        const res = await sendMessage({ type: "GET_ALL_ACTIVE_TABS" });
-        if (!res?.ok || !res?.tabIds) return;
+  // Fetch all active tabs and their details
+  async function loadActiveTabs() {
+    try {
+      setLoading(true);
+      // Get all tab IDs with active EQ
+      const res = await sendMessage({ type: "GET_ALL_ACTIVE_TABS" });
+      if (!res?.ok || !res?.tabIds) return;
 
-        // Fetch full tab details for each active tab
-        const tabDetails = await Promise.all(
-          res.tabIds.map((tabId) => chrome.tabs.get(tabId).catch(() => null))
-        );
+      // Fetch full tab details for each active tab
+      const tabDetails = await Promise.all(
+        res.tabIds.map((tabId) => chrome.tabs.get(tabId).catch(() => null))
+      );
 
-        // Filter out null results and set state
-        setActiveTabs(tabDetails.filter((tab) => tab !== null));
-      } catch (e) {
-        console.error("Failed to load active tabs:", e);
-      }
+      // Filter out null results and set state
+      setActiveTabs(tabDetails.filter((tab) => tab !== null));
+    } catch (e) {
+      console.error("Failed to load active tabs:", e);
+    } finally {
+      setLoading(false);
     }
+  }
 
+  // Load active tabs on mount
+  useEffect(() => {
     loadActiveTabs();
   }, []);
 
@@ -48,8 +53,15 @@ export default function ActiveTabs() {
     <div className="w-[730px] h-[365px] ml-13 flex items-center justify-center">
       <div className="w-100 text-sm overflow-y-auto max-h-[365px] scrollbar-none">
         {activeTabs.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-eq-yellow/50">
-            No active tabs
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-eq-yellow/70">
+            <div>No active tabs</div>
+            <button
+              onClick={loadActiveTabs}
+              disabled={loading}
+              className="px-1.5 cursor-pointer border border-eq-yellow/70 rounded-xs hover:bg-eq-yellow hover:text-eq-blue hover:border-eq-yellow disabled:opacity-50"
+            >
+              {loading ? "Refreshing..." : "Refresh"}
+            </button>
           </div>
         ) : (
           activeTabs.map((tab) => (
