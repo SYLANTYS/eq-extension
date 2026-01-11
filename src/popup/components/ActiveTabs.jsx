@@ -1,10 +1,27 @@
 export default function ActiveTabs() {
   return (
-    <div className="w-[730px] h-[365px] ml-13 relative flex items-center justify-center border border-eq-yellow/50">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-4">Active Tabs</h2>
-        <p className="text-sm mb-2">View and manage tabs with active EQ.</p>
-        <p className="text-xs">Active tabs list coming soon...</p>
+    <div className="w-[730px] h-[365px] ml-13 flex items-center justify-center">
+      <div className="w-100 text-sm">
+        <div className="flex gap-2 mb-1 items-center">
+          <button className="flex items-center gap-1 px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
+            <p>Stop EQing</p>
+            <div className="w-4 h-4"></div>
+          </button>
+
+          <p className="flex-1 truncate">
+            Childish Gambino - This is America (Official Audio)
+          </p>
+        </div>
+        <div className="flex gap-2 mb-1 items-center">
+          <button className="flex items-center gap-1 px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
+            <p>Stop EQing</p>
+            <div className="w-4 h-4"></div>
+          </button>
+
+          <p className="flex-1 truncate">
+            Childish Gambino - This is America (Official Audio)
+          </p>
+        </div>
       </div>
     </div>
   );
