@@ -112,6 +112,13 @@ export default function Controls({ volume, onVolumeStart }) {
                 >
                   {freq}
                 </text>
+                {/* lower shelf node, 9 eq nodes, higher shelf node */}
+                {(index === 2 || index === 12) && (
+                  <circle cx={xPos} cy="250" r="7" fill="rgb(138 104 158)" />
+                )}
+                {index > 2 && index < 12 && (
+                  <circle cx={xPos} cy="250" r="7" fill="rgb(198 246 221)" />
+                )}
               </g>
             );
           })}
