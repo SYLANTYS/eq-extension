@@ -47,6 +47,5 @@ Load in Chrome:
 
 - Web Audio EQ graph
 - Draw EQ grid and curve
-- Draggable EQ points
 - Presets (save / delete / reset)
 - Pro Tab
