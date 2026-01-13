@@ -45,6 +45,7 @@ Load in Chrome:
 
 ## TODO
 
+- Make sure bg and offscreen stay alive with onClick and MouseDown
 - Web Audio EQ graph
 - Draw EQ grid and curve
 - Presets (save / delete / reset)
