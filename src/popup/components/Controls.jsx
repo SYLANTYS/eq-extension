@@ -112,12 +112,28 @@ export default function Controls({ volume, onVolumeStart }) {
                 >
                   {freq}
                 </text>
-                {/* lower shelf node, 9 eq nodes, higher shelf node */}
+                {/* 2 shelf nodes, 9 eq nodes */}
                 {(index === 2 || index === 12) && (
-                  <circle cx={xPos} cy="250" r="7" fill="rgb(138 104 158)" />
+                  <circle
+                    cx={xPos}
+                    cy="250"
+                    r="7"
+                    fill="rgb(138 104 158)"
+                    stroke="rgb(138 104 158)"
+                    strokeWidth="1"
+                    className="cursor-pointer focus:fill-eq-blue"
+                  />
                 )}
                 {index > 2 && index < 12 && (
-                  <circle cx={xPos} cy="250" r="7" fill="rgb(198 246 221)" />
+                  <circle
+                    cx={xPos}
+                    cy="250"
+                    r="7"
+                    fill="rgb(198 246 221)"
+                    stroke="rgb(198 246 221)"
+                    strokeWidth="1"
+                    className="cursor-pointer focus:fill-eq-blue"
+                  />
                 )}
               </g>
             );
