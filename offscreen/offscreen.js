@@ -74,6 +74,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sourceNode,
           gainNode,
           mediaStream,
+          streamId: msg.streamId,
         });
 
         console.log(
@@ -176,6 +177,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type === "GET_ACTIVE_TABS") {
       const activeTabIds = Array.from(audioGraphs.keys());
       sendResponse({ ok: true, tabIds: activeTabIds });
+      return;
+    }
+
+    // =====================
+    // GET_STREAM_IDS
+    // =====================
+    // Returns a map of tabId -> streamId for all active audio graphs.
+    // Used by background worker to rehydrate eqSessions with actual streamIds.
+    if (msg?.type === "GET_STREAM_IDS") {
+      const streamIds = {};
+      for (const [tabId, graph] of audioGraphs.entries()) {
+        streamIds[tabId] = graph.streamId;
+      }
+      sendResponse({ ok: true, streamIds });
       return;
     }
 

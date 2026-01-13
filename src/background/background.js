@@ -36,11 +36,23 @@ async function rehydrateEqSessions() {
     });
 
     if (res?.ok && Array.isArray(res?.tabIds)) {
+      // Get the streamIds for all active tabs
+      const streamIdsRes = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ type: "GET_STREAM_IDS" }, (response) => {
+          const err = chrome.runtime.lastError;
+          if (err) return reject(err);
+          resolve(response);
+        });
+      });
+
+      const streamIds = streamIdsRes?.streamIds ?? {};
+
       res.tabIds.forEach((tabId) => {
-        // Reconstruct session entry with status "active"
-        // (we don't have the original streamId, but that's okay—
-        // offscreen already has the active audio graph)
-        eqSessions.set(tabId, { streamId: null, status: "active" });
+        // Reconstruct session entry with actual streamId from offscreen
+        eqSessions.set(tabId, {
+          streamId: streamIds[tabId] || null,
+          status: "active",
+        });
       });
       console.log("[BG] Rehydrated eqSessions for", res.tabIds.length, "tabs");
     }

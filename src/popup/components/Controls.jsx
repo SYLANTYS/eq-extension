@@ -15,6 +15,37 @@ export default function Controls({ volume, onVolumeStart }) {
   const [draggingNode, setDraggingNode] = useState(null);
   const svgRef = useRef(null);
 
+  // Throttle tracking for ensuring backend is ready (1 second cooldown)
+  const lastEnsureTimeRef = useRef(0);
+
+  // Throttled ensure backend ready with 1 second cooldown
+  async function throttledEnsureBackend() {
+    const now = Date.now();
+    if (now - lastEnsureTimeRef.current < 1000) {
+      return; // Skip if called within last 1 second
+    }
+    lastEnsureTimeRef.current = now;
+
+    // Call backend ping and reinit via sendMessage
+    try {
+      await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: "PING_BG" }, (res) => {
+          const err = chrome.runtime.lastError;
+          resolve(err ? { ok: false } : res ?? { ok: true });
+        });
+      });
+
+      await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: "REINIT_MISSING_AUDIO" }, (res) => {
+          const err = chrome.runtime.lastError;
+          resolve(err ? { ok: false } : res ?? { ok: true });
+        });
+      });
+    } catch (e) {
+      console.warn("[Controls] Error ensuring backend:", e);
+    }
+  }
+
   // Standard frequency bands used in audio processing
   const frequencies = [
     5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
@@ -99,6 +130,7 @@ export default function Controls({ volume, onVolumeStart }) {
    */
   function handleNodeMouseDown(index, e) {
     e.preventDefault();
+    throttledEnsureBackend();
     setDraggingNode(index);
   }
 

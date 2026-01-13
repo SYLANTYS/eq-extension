@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Controls from "./components/Controls";
 import Guide from "./components/Guide";
 import ActiveTabs from "./components/ActiveTabs";
@@ -21,8 +21,37 @@ export default function Popup() {
     });
   }
 
-  // Handles volume slider mouse down event.
+  // Ensure background and offscreen are ready by pinging BG and reinitializing missing audio.
+  // Call this before critical operations to guarantee service worker and offscreen are alive.
+  async function ensureBackendReady() {
+    // Ping background until it's ready
+    for (let i = 0; i < 40; i++) {
+      const ping = await sendMessage({ type: "PING_BG" });
+      if (ping?.ok) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+
+    // Reinitialize any missing audio graphs in offscreen
+    await sendMessage({ type: "REINIT_MISSING_AUDIO" });
+  }
+
+  // Throttle tracking for ensuring backend is ready (1 second cooldown)
+  const lastEnsureTimeRef = useRef(0);
+
+  // Throttled ensure backend ready with 1 second cooldown
+  async function throttledEnsureBackend() {
+    const now = Date.now();
+    if (now - lastEnsureTimeRef.current < 1000) {
+      return; // Skip if called within last 1 second
+    }
+    lastEnsureTimeRef.current = now;
+    await ensureBackendReady();
+  }
+
+  // Handles volume slider mouse down event (with throttled backend ensure).
   function handleVolumeStart(e) {
+    throttledEnsureBackend();
+
     const rect = e.currentTarget.getBoundingClientRect();
 
     function move(ev) {
@@ -80,7 +109,7 @@ export default function Popup() {
     });
   }
 
-  // On mount, ping background until it's ready, then start EQ for active tab.
+  // On mount, ensure backend is ready and check if EQ is already active for this tab.
   useEffect(() => {
     let cancelled = false;
 
@@ -105,19 +134,10 @@ export default function Popup() {
         setVolumeState(volumeStatus.gain);
       }
 
-      // Ping background until it's ready
-      for (let i = 0; i < 40; i++) {
-        if (cancelled) return;
-        const ping = await sendMessage({ type: "PING_BG" });
-        if (ping?.ok) break;
-        await new Promise((r) => setTimeout(r, 50));
-      }
-
       if (cancelled) return;
 
-      // Ensure all active EQ sessions have their audio graphs in offscreen.
-      // This handles the case where BG survived but offscreen crashed.
-      await sendMessage({ type: "REINIT_MISSING_AUDIO" });
+      // Ensure backend is ready
+      await ensureBackendReady();
 
       if (cancelled) return;
 
@@ -168,7 +188,10 @@ export default function Popup() {
         <div className="pl-13">
           <div className="flex gap-1 py-0.5 text-sm">
             <button
-              onClick={() => setActiveTab("Controls")}
+              onClick={() => {
+                throttledEnsureBackend();
+                setActiveTab("Controls");
+              }}
               className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
                 activeTab === "Controls"
                   ? "text-eq-blue bg-eq-yellow"
@@ -178,7 +201,10 @@ export default function Popup() {
               Controls
             </button>
             <button
-              onClick={() => setActiveTab("Guide")}
+              onClick={() => {
+                throttledEnsureBackend();
+                setActiveTab("Guide");
+              }}
               className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
                 activeTab === "Guide"
                   ? "text-eq-blue bg-eq-yellow"
@@ -188,7 +214,10 @@ export default function Popup() {
               Guide
             </button>
             <button
-              onClick={() => setActiveTab("ActiveTabs")}
+              onClick={() => {
+                throttledEnsureBackend();
+                setActiveTab("ActiveTabs");
+              }}
               className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
                 activeTab === "ActiveTabs"
                   ? "text-eq-blue bg-eq-yellow"
@@ -198,7 +227,10 @@ export default function Popup() {
               Active Tabs
             </button>
             <button
-              onClick={() => setActiveTab("Pro")}
+              onClick={() => {
+                throttledEnsureBackend();
+                setActiveTab("Pro");
+              }}
               className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
                 activeTab === "Pro"
                   ? "text-eq-blue bg-eq-yellow"
