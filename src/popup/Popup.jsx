@@ -115,6 +115,12 @@ export default function Popup() {
 
       if (cancelled) return;
 
+      // Ensure all active EQ sessions have their audio graphs in offscreen.
+      // This handles the case where BG survived but offscreen crashed.
+      await sendMessage({ type: "REINIT_MISSING_AUDIO" });
+
+      if (cancelled) return;
+
       const status = await sendMessage({
         type: "GET_EQ_STATUS",
         tabId: tab.id,

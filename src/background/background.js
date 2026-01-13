@@ -289,4 +289,78 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: true, tabIds: activeTabIds });
     return true;
   }
+
+  // =====================
+  // REINIT_MISSING_AUDIO
+  // =====================
+  // Called by popup on mount to ensure all active EQ sessions
+  // have their audio graphs in offscreen.
+  // Handles the case where BG stays alive but offscreen crashes.
+  if (msg?.type === "REINIT_MISSING_AUDIO") {
+    (async () => {
+      try {
+        // Ensure offscreen exists (recreate if it crashed)
+        await ensureOffscreen();
+
+        const activeTabIds = Array.from(eqSessions.keys());
+
+        if (activeTabIds.length === 0) {
+          sendResponse({ ok: true, reinitialized: [] });
+          return;
+        }
+
+        // Query offscreen for which audio graphs are still active
+        const offscreenStatus = await sendToOffscreen({
+          type: "GET_ACTIVE_TABS",
+        });
+
+        const offscreenTabIds = offscreenStatus?.tabIds ?? [];
+        const offscreenSet = new Set(offscreenTabIds);
+
+        // Find sessions that are in BG but not in offscreen
+        const missingTabs = activeTabIds.filter(
+          (tabId) => !offscreenSet.has(tabId)
+        );
+
+        console.log(
+          "[BG] Found",
+          missingTabs.length,
+          "sessions missing from offscreen, reinitializing..."
+        );
+
+        const reinitialized = [];
+
+        // Reinitialize audio for each missing tab
+        for (const tabId of missingTabs) {
+          try {
+            // Get a fresh streamId (old one may be stale/expired)
+            const freshStreamId = await chrome.tabCapture.getMediaStreamId({
+              targetTabId: tabId,
+            });
+
+            const res = await sendToOffscreen({
+              type: "INIT_AUDIO",
+              streamId: freshStreamId,
+              tabId,
+            });
+
+            if (res?.ok) {
+              eqSessions.get(tabId).streamId = freshStreamId;
+              eqSessions.get(tabId).status = "active";
+              reinitialized.push(tabId);
+              console.log("[BG] Reinitialized audio for tab", tabId);
+            }
+          } catch (e) {
+            console.warn("[BG] Failed to reinit tab", tabId, ":", e);
+          }
+        }
+
+        sendResponse({ ok: true, reinitialized });
+      } catch (e) {
+        console.warn("[BG] REINIT_MISSING_AUDIO failed:", e);
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    })();
+    return true;
+  }
 });
