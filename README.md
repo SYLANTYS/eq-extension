@@ -46,7 +46,7 @@ Load in Chrome:
 ## TODO
 
 - When I click into popup (useEffect) needs to make sure both BG and Offscreen are running
-- Make sure BG and Offscreen stay alive with onClick and MouseDown (+ other user gestures)
+- Make sure BG and Offscreen recovers with onClick and MouseDown (+ other user gestures)
 - Web Audio EQ graph
 - Draw EQ grid and curve
 - Presets (save / delete / reset)
