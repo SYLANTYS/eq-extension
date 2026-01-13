@@ -31,10 +31,91 @@ export default function Controls({ volume, onVolumeStart }) {
 
       {/* ===== CENTER: EQ CANVAS ===== */}
       <main className="w-[730px] h-[365px] relative">
-        <div className="absolute inset-0 flex items-center justify-center border border-eq-yellow/50">
-          {/* Replace this with <canvas /> later 750px by 380px */}
-          EQ Canvas Area
-        </div>
+        <svg
+          className="absolute inset-0 w-full h-full border border-eq-yellow/50"
+          viewBox="0 0 1000 500"
+          preserveAspectRatio="none"
+        >
+          {/* Y-axis labels: -25 to 25 in 5 unit increments */}
+          {[25, 20, 15, 10, 5, 0, -5, -10, -15, -20, -25].map((label) => {
+            const yPos = 250 + (-label * 250) / 30; // 0-500 range, 0=30db, 500=-30db
+            return (
+              <g key={label}>
+                <line
+                  x1="0"
+                  y1={yPos}
+                  x2="8"
+                  y2={yPos}
+                  stroke="#f5deb3"
+                  strokeWidth="1"
+                />
+                <text
+                  x="12"
+                  y={yPos + 4}
+                  fontSize="18"
+                  fill="#f5deb3"
+                  textAnchor="start"
+                >
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* X-axis labels: Frequency bands */}
+          {[
+            5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
+          ].map((freq, index) => {
+            // Each spacing is 1.2x wider than the previous
+            const usableWidth = 1000 - 120 - 15;
+            const ratio = 1.2;
+            const maxIndex = 12;
+            // Geometric series: position = start + spacing * (ratio^index - 1) / (ratio - 1)
+            const xPos =
+              120 +
+              (usableWidth * (Math.pow(ratio, index) - 1)) /
+                (Math.pow(ratio, maxIndex) - 1);
+            return (
+              <g key={freq}>
+                {/* Tick marks at bottom, top, and center */}
+                <line
+                  x1={xPos}
+                  y1="475"
+                  x2={xPos}
+                  y2="500"
+                  stroke="#f5deb3"
+                  strokeWidth="1"
+                />
+                <line
+                  x1={xPos}
+                  y1="0"
+                  x2={xPos}
+                  y2="25"
+                  stroke="#f5deb3"
+                  strokeWidth="1"
+                />
+                <line
+                  x1={xPos}
+                  y1="235"
+                  x2={xPos}
+                  y2="265"
+                  stroke="#f5deb350"
+                  strokeWidth="1"
+                />
+                {/* Frequency label */}
+                <text
+                  x={xPos}
+                  y="470"
+                  fontSize="18"
+                  fill="#f5deb3"
+                  textAnchor="middle"
+                >
+                  {freq}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
       </main>
     </div>
   );
