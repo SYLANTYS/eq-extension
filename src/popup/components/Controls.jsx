@@ -12,7 +12,7 @@ import { useState, useEffect, useRef } from "react";
  */
 export default function Controls({ volume, onVolumeStart }) {
   const [nodePositions, setNodePositions] = useState({}); // { [index]: { x, y } }
-  const [nodeQValues, setNodeQValues] = useState({}); // { [index]: Q value }
+  const [nodeBaseQValues, setNodeBaseQValues] = useState({}); // { [index]: base Q value (adjustable via shift+drag) }
   const [draggingNode, setDraggingNode] = useState(null);
   const [isShiftDrag, setIsShiftDrag] = useState(false);
   const svgRef = useRef(null);
@@ -127,7 +127,11 @@ export default function Controls({ volume, onVolumeStart }) {
     // Standard EQ Q formula: relates to the bandwidth at -3dB
     // For peaking filters, Q ≈ sqrt(gain) / 2 provides reasonable EQ behavior
     const A = Math.pow(10, gainDb / 40);
-    const Q = nodeQValues[index] ?? 0.3; // Use stored Q or default to 0.3
+    const baseQ = nodeBaseQValues[index] ?? 0.3; // Underlying Q (adjustable via shift+drag, default 0.3)
+
+    // Dynamic Q calculation: as gain deviates from 0 to ±30, Q scales from 150% to 50% of baseQ
+    // At 0 dB: Q = 1.5 × baseQ, At ±30 dB: Q = 0.5 × baseQ
+    const Q = baseQ * (1.5 - Math.abs(gainDb) / 30);
 
     // RBJ peaking filter coefficients (from Audio EQ Cookbook)
     const w0 = (2 * Math.PI * centerFreq) / sampleRate;
@@ -264,29 +268,29 @@ export default function Controls({ volume, onVolumeStart }) {
     const mouseY = (e.clientY - rect.top) * scaleY;
 
     if (isShiftDrag) {
-      // Shift+drag: Adjust Q value based on vertical movement (0.1 to 2.0)
+      // Shift+drag: Adjust base Q value based on vertical movement (0.1 to 2.0)
       // Uses logarithmic scale for symmetric sensitivity
-      // Drag down = lower Q (0.1), drag up = higher Q (2.0)
+      // Drag down = lower baseQ (0.1), drag up = higher baseQ (2.0)
 
-      // Calculate Q using logarithmic scale for symmetric feel
+      // Calculate baseQ using logarithmic scale for symmetric feel
       // Range: 0.1 to 2.0 (center at 0.3)
       const logMin = Math.log(0.1);
       const logMax = Math.log(2.0);
       const logCenter = Math.log(0.3);
 
-      // Increased sensitivity: 1/3 SVG height for full Q range
+      // Increased sensitivity: 1/3 SVG height for full baseQ range
       // Use fixed starting position to prevent snapping
       const startY = shiftDragStartYRef.current ?? mouseY;
       const qOffsetRatio = (startY - mouseY) / (SVG_HEIGHT / 3);
       let logQ = logCenter + qOffsetRatio * ((logMax - logMin) / 2);
-      let Q = Math.exp(logQ);
-      Q = Math.max(0.1, Math.min(2.0, Q)); // Clamp to 0.1-2.0
+      let baseQ = Math.exp(logQ);
+      baseQ = Math.max(0.1, Math.min(2.0, baseQ)); // Clamp to 0.1-2.0
 
-      console.log(`Q: ${Q.toFixed(2)}`);
+      console.log(`Base Q: ${baseQ.toFixed(2)}`);
 
-      setNodeQValues((prev) => ({
+      setNodeBaseQValues((prev) => ({
         ...prev,
-        [draggingNode]: Q,
+        [draggingNode]: baseQ,
       }));
     } else {
       // Normal drag: update node position (frequency/gain)
@@ -302,9 +306,15 @@ export default function Controls({ volume, onVolumeStart }) {
       let gaindB = -(offsetY / SVG_HEIGHT) * 60; // Map pixel offset to dB range
       gaindB = Math.max(-30, Math.min(30, gaindB)); // Clamp to -30 to +30 dB
 
+      // Calculate regular Q for debug output
+      const baseQ = nodeBaseQValues[draggingNode] ?? 0.3;
+      const Q = baseQ * (1.5 - Math.abs(gaindB) / 30);
+
       // Debug output
       console.log(
-        `Frequency: ${frequency.toFixed(2)} Hz | Gain: ${gaindB.toFixed(2)} dB`
+        `Frequency: ${frequency.toFixed(2)} Hz | Gain: ${gaindB.toFixed(
+          2
+        )} dB | Q: ${Q.toFixed(2)}`
       );
 
       // Update node position
@@ -508,6 +518,7 @@ export default function Controls({ volume, onVolumeStart }) {
                     strokeWidth="2"
                     fill="none"
                     opacity="0.6"
+                    pointerEvents="none"
                   />
                 )}
 
