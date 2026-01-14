@@ -45,6 +45,7 @@ Load in Chrome:
 
 ## TODO
 
+- Add Shelves to Popup
 - Web Audio EQ graph
 - Presets (save / delete / reset)
 - Pro Tab
