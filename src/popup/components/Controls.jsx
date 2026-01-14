@@ -13,6 +13,8 @@ import { useState, useEffect, useRef } from "react";
 export default function Controls({ volume, onVolumeStart }) {
   const [nodePositions, setNodePositions] = useState({}); // { [index]: { x, y } }
   const [nodeBaseQValues, setNodeBaseQValues] = useState({}); // { [index]: base Q value (adjustable via shift+drag) }
+  const [nodeGainValues, setNodeGainValues] = useState({}); // { [index]: gain in dB }
+  const [nodeFrequencyValues, setNodeFrequencyValues] = useState({}); // { [index]: frequency in Hz }
   const [draggingNode, setDraggingNode] = useState(null);
   const [isShiftDrag, setIsShiftDrag] = useState(false);
   const svgRef = useRef(null);
@@ -269,60 +271,63 @@ export default function Controls({ volume, onVolumeStart }) {
 
     if (isShiftDrag) {
       // Shift+drag: Adjust base Q value based on vertical movement (0.1 to 2.0)
-      // Uses logarithmic scale for symmetric sensitivity
-      // Drag down = lower baseQ (0.1), drag up = higher baseQ (2.0)
-
-      // Calculate baseQ using logarithmic scale for symmetric feel
-      // Range: 0.1 to 2.0 (center at 0.3)
       const logMin = Math.log(0.1);
       const logMax = Math.log(2.0);
       const logCenter = Math.log(0.3);
 
-      // Increased sensitivity: 1/3 SVG height for full baseQ range
-      // Use fixed starting position to prevent snapping
       const startY = shiftDragStartYRef.current ?? mouseY;
       const qOffsetRatio = (startY - mouseY) / (SVG_HEIGHT / 3);
       let logQ = logCenter + qOffsetRatio * ((logMax - logMin) / 2);
       let baseQ = Math.exp(logQ);
-      baseQ = Math.max(0.1, Math.min(2.0, baseQ)); // Clamp to 0.1-2.0
+      baseQ = Math.max(0.1, Math.min(2.0, baseQ));
 
-      console.log(`Base Q: ${baseQ.toFixed(2)}`);
+      console.log(`[Node ${draggingNode}] Base Q: ${baseQ.toFixed(2)}`);
 
       setNodeBaseQValues((prev) => ({
         ...prev,
         [draggingNode]: baseQ,
       }));
-    } else {
-      // Normal drag: update node position (frequency/gain)
-      const baseX = getBaseXPos(draggingNode);
-      const offsetX = mouseX - baseX;
-      const offsetY = mouseY - CENTER_Y;
-      const currentX = baseX + offsetX;
-
-      // Calculate frequency and gain
-      let frequency = getFrequencyFromXPos(currentX);
-      frequency = Math.max(1, Math.min(21500, frequency)); // Clamp to 1-21500 Hz
-
-      let gaindB = -(offsetY / SVG_HEIGHT) * 60; // Map pixel offset to dB range
-      gaindB = Math.max(-30, Math.min(30, gaindB)); // Clamp to -30 to +30 dB
-
-      // Calculate regular Q for debug output
-      const baseQ = nodeBaseQValues[draggingNode] ?? 0.3;
-      const Q = baseQ * (1.5 - Math.abs(gaindB) / 30);
-
-      // Debug output
-      console.log(
-        `Frequency: ${frequency.toFixed(2)} Hz | Gain: ${gaindB.toFixed(
-          2
-        )} dB | Q: ${Q.toFixed(2)}`
-      );
-
-      // Update node position
-      setNodePositions((prev) => ({
-        ...prev,
-        [draggingNode]: { x: offsetX, y: offsetY },
-      }));
+      return;
     }
+
+    // Normal drag: update node position (frequency/gain)
+    const baseX = getBaseXPos(draggingNode);
+    const offsetX = mouseX - baseX;
+    const offsetY = mouseY - CENTER_Y;
+    const currentX = baseX + offsetX;
+
+    // Calculate frequency and gain
+    let frequency = getFrequencyFromXPos(currentX);
+    frequency = Math.max(1, Math.min(21500, frequency));
+
+    let gaindB = -(offsetY / SVG_HEIGHT) * 60;
+    gaindB = Math.max(-30, Math.min(30, gaindB));
+
+    const baseQ = nodeBaseQValues[draggingNode] ?? 0.3;
+    const Q = baseQ * (1.5 - Math.abs(gaindB) / 30);
+
+    // Update state
+    setNodePositions((prev) => ({
+      ...prev,
+      [draggingNode]: { x: offsetX, y: offsetY },
+    }));
+    setNodeGainValues((prev) => ({
+      ...prev,
+      [draggingNode]: gaindB,
+    }));
+    setNodeFrequencyValues((prev) => ({
+      ...prev,
+      [draggingNode]: frequency,
+    }));
+
+    // Debug output with stored state values
+    console.log(
+      `[Node ${draggingNode}] Stored → Freq: ${frequency.toFixed(
+        2
+      )} Hz | Gain: ${gaindB.toFixed(2)} dB | Base Q: ${baseQ.toFixed(
+        2
+      )} | Q: ${Q.toFixed(2)}`
+    );
   }
 
   /**
