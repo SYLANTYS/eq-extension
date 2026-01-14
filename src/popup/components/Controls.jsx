@@ -6,14 +6,17 @@ import { useState, useEffect, useRef } from "react";
  * Features:
  * - 11 draggable frequency bands (20 Hz - 20.48 kHz)
  * - Real-time bell curve visualization for boost/cut
- * - Frequency range: 5-20480 Hz
+ * - Frequency range: 1-21500 Hz
  * - Gain range: -30 to +30 dB
  * - Master volume control on left sidebar
  */
 export default function Controls({ volume, onVolumeStart }) {
   const [nodePositions, setNodePositions] = useState({}); // { [index]: { x, y } }
+  const [nodeQValues, setNodeQValues] = useState({}); // { [index]: Q value }
   const [draggingNode, setDraggingNode] = useState(null);
+  const [isShiftDrag, setIsShiftDrag] = useState(false);
   const svgRef = useRef(null);
+  const shiftDragStartYRef = useRef(null); // Track initial Y position for shift drag
 
   // Throttle tracking for ensuring backend is ready (1 second cooldown)
   const lastEnsureTimeRef = useRef(0);
@@ -52,7 +55,7 @@ export default function Controls({ volume, onVolumeStart }) {
   ];
 
   // SVG Coordinate System:
-  // - Horizontal (X): 0-1000 units, 5Hz-20480Hz on log scale
+  // - Horizontal (X): 0-1000 units, 1Hz-21500Hz on log scale
   // - Vertical (Y): 0-500 units, 0dB at center (250), -30dB at bottom, +30dB at top
   // - Node radius: 7 units
   const SVG_WIDTH = 1000;
@@ -96,33 +99,104 @@ export default function Controls({ volume, onVolumeStart }) {
   }
 
   /**
-   * Generate SVG path for Gaussian bell curve
-   * Only renders when node is moved away from center (cy !== centerY)
-   * Amplitude determines boost (positive) or cut (negative)
+   * Generate SVG path for true parametric EQ bell curve (RBJ biquad peaking filter)
+   * Computes frequency-domain magnitude response using RBJ Audio EQ Cookbook formulas
+   * Sample rate: 44,100 Hz
+   * Frequency range: 1–21500 Hz (log scale)
+   * Converts magnitude to dB and maps to SVG Y-axis
    */
   function generateBellCurve(index) {
     const pos = getNodePosition(index);
     const { x: cx, y: cy } = pos;
 
-    // No curve when at default position
-    if (cy === CENTER_Y) return null;
+    // No curve when within ±5 pixels of center (250)
+    if (Math.abs(cy - CENTER_Y) <= 5) return null;
 
-    const amplitude = cy - CENTER_Y;
-    const bandwidth = 60;
-    const sigma = bandwidth / 4;
+    const sampleRate = 44100;
+    const gainOffset = cy - CENTER_Y;
 
-    // Generate 101 points for smooth curve using Gaussian formula
+    // Derive gain (dB) from Y position
+    // Y range: 0-500, Center: 250 (0dB)
+    // +30 dB at top, -30 dB at bottom
+    const gainDb = -(gainOffset / SVG_HEIGHT) * 60;
+
+    // Derive center frequency from X position
+    const centerFreq = getFrequencyFromXPos(cx);
+
+    // Compute Q from gain (steeper for larger gains)
+    // Standard EQ Q formula: relates to the bandwidth at -3dB
+    // For peaking filters, Q ≈ sqrt(gain) / 2 provides reasonable EQ behavior
+    const A = Math.pow(10, gainDb / 40);
+    const Q = nodeQValues[index] ?? 0.3; // Use stored Q or default to 0.3
+
+    // RBJ peaking filter coefficients (from Audio EQ Cookbook)
+    const w0 = (2 * Math.PI * centerFreq) / sampleRate;
+    const sinW0 = Math.sin(w0);
+    const cosW0 = Math.cos(w0);
+    const alpha = sinW0 / (2 * Q);
+
+    // Peaking EQ filter transfer function H(z)
+    const b0 = 1 + alpha * A;
+    const b1 = -2 * cosW0;
+    const b2 = 1 - alpha * A;
+    const a0 = 1 + alpha / A;
+    const a1 = -2 * cosW0;
+    const a2 = 1 - alpha / A;
+
+    // Determine node color (matches circle styling)
+    const isShelf = index === 2 || index === 12;
+    const nodeColor = isShelf ? "rgb(138 104 158)" : "rgb(198 246 221)";
+
+    // Generate 1000 points across log-frequency range (1–21500 Hz) for high precision
+    const minFreq = 1;
+    const maxFreq = 21500;
     const points = [];
-    for (let i = 0; i <= 100; i++) {
-      const xOffset = (i - 50) * (bandwidth / 50);
-      const x = cx + xOffset;
-      const expFactor = Math.exp(-((x - cx) ** 2) / (2 * sigma ** 2));
-      const y = CENTER_Y + amplitude * expFactor;
+    const numPoints = 1000;
 
-      points.push(`${i === 0 ? "M" : "L"} ${x} ${y}`);
+    for (let i = 0; i <= numPoints; i++) {
+      // Log-spaced frequency
+      const freq = minFreq * Math.pow(maxFreq / minFreq, i / numPoints);
+
+      // Compute frequency-domain magnitude response |H(e^(jω))|
+      const w = (2 * Math.PI * freq) / sampleRate;
+      const sinW = Math.sin(w);
+      const cosW = Math.cos(w);
+      const sin2W = Math.sin(2 * w);
+      const cos2W = Math.cos(2 * w);
+
+      // Numerator and denominator of transfer function
+      const numReal = b0 + b1 * cosW + b2 * cos2W;
+      const numImag = b1 * sinW + b2 * sin2W;
+      const denReal = a0 + a1 * cosW + a2 * cos2W;
+      const denImag = a1 * sinW + a2 * sin2W;
+
+      // Magnitude of complex division
+      const numMag = Math.sqrt(numReal * numReal + numImag * numImag);
+      const denMag = Math.sqrt(denReal * denReal + denImag * denImag);
+      const magnitude = numMag / denMag;
+
+      // Convert to dB: 20·log10(magnitude)
+      const magnitudeDb = 20 * Math.log10(Math.max(magnitude, 1e-10));
+
+      // Map frequency to SVG X coordinate (log scale)
+      // Allows graph to extend beyond usable width boundaries (follows node position)
+      const maxIndex = frequencies.length - 1;
+      const logRatio =
+        Math.log(freq / frequencies[0]) /
+        Math.log(frequencies[maxIndex] / frequencies[0]);
+      const freqXPos =
+        X_AXIS_START +
+        (USABLE_WIDTH * (Math.pow(GEOMETRIC_RATIO, logRatio * maxIndex) - 1)) /
+          (Math.pow(GEOMETRIC_RATIO, maxIndex) - 1);
+
+      // Map dB to SVG Y coordinate
+      // SVG Y: 250 = 0dB, each 30dB = 250px
+      const svgY = CENTER_Y - (magnitudeDb / 30) * (SVG_HEIGHT / 2);
+
+      points.push(`${i === 0 ? "M" : "L"} ${freqXPos} ${svgY}`);
     }
 
-    return points.join(" ");
+    return { path: points.join(" "), color: nodeColor };
   }
 
   /**
@@ -132,6 +206,18 @@ export default function Controls({ volume, onVolumeStart }) {
     e.preventDefault();
     throttledEnsureBackend();
     setDraggingNode(index);
+    setIsShiftDrag(e.shiftKey);
+    if (e.shiftKey) {
+      // For shift drag, capture starting Y position
+      const svg = svgRef.current;
+      if (svg) {
+        const rect = svg.getBoundingClientRect();
+        const svgRect = svg.viewBox.baseVal;
+        const scaleY = svgRect.height / rect.height;
+        const mouseY = (e.clientY - rect.top) * scaleY;
+        shiftDragStartYRef.current = mouseY;
+      }
+    }
   }
 
   /**
@@ -158,7 +244,8 @@ export default function Controls({ volume, onVolumeStart }) {
 
   /**
    * Handle mouse move during drag
-   * Updates node position and logs frequency/gain in console
+   * Normal drag: updates node position (frequency/gain)
+   * Shift+drag (vertical only): adjusts Q value from 0.1 to 2.0
    * Runs at document level to allow dragging outside SVG
    */
   function handleMouseMove(e) {
@@ -176,29 +263,56 @@ export default function Controls({ volume, onVolumeStart }) {
     const mouseX = (e.clientX - rect.left) * scaleX;
     const mouseY = (e.clientY - rect.top) * scaleY;
 
-    // Calculate drag offsets
-    const baseX = getBaseXPos(draggingNode);
-    const offsetX = mouseX - baseX;
-    const offsetY = mouseY - CENTER_Y;
-    const currentX = baseX + offsetX;
+    if (isShiftDrag) {
+      // Shift+drag: Adjust Q value based on vertical movement (0.1 to 2.0)
+      // Uses logarithmic scale for symmetric sensitivity
+      // Drag down = lower Q (0.1), drag up = higher Q (2.0)
 
-    // Calculate frequency and gain
-    let frequency = getFrequencyFromXPos(currentX);
-    frequency = Math.max(5, Math.min(20480, frequency)); // Clamp to 5-20480 Hz
+      // Calculate Q using logarithmic scale for symmetric feel
+      // Range: 0.1 to 2.0 (center at 0.3)
+      const logMin = Math.log(0.1);
+      const logMax = Math.log(2.0);
+      const logCenter = Math.log(0.3);
 
-    let gaindB = -(offsetY / SVG_HEIGHT) * 60; // Map pixel offset to dB range
-    gaindB = Math.max(-30, Math.min(30, gaindB)); // Clamp to -30 to +30 dB
+      // Increased sensitivity: 1/3 SVG height for full Q range
+      // Use fixed starting position to prevent snapping
+      const startY = shiftDragStartYRef.current ?? mouseY;
+      const qOffsetRatio = (startY - mouseY) / (SVG_HEIGHT / 3);
+      let logQ = logCenter + qOffsetRatio * ((logMax - logMin) / 2);
+      let Q = Math.exp(logQ);
+      Q = Math.max(0.1, Math.min(2.0, Q)); // Clamp to 0.1-2.0
 
-    // Debug output
-    console.log(
-      `Frequency: ${frequency.toFixed(2)} Hz | Gain: ${gaindB.toFixed(2)} dB`
-    );
+      console.log(`Q: ${Q.toFixed(2)}`);
 
-    // Update node position
-    setNodePositions((prev) => ({
-      ...prev,
-      [draggingNode]: { x: offsetX, y: offsetY },
-    }));
+      setNodeQValues((prev) => ({
+        ...prev,
+        [draggingNode]: Q,
+      }));
+    } else {
+      // Normal drag: update node position (frequency/gain)
+      const baseX = getBaseXPos(draggingNode);
+      const offsetX = mouseX - baseX;
+      const offsetY = mouseY - CENTER_Y;
+      const currentX = baseX + offsetX;
+
+      // Calculate frequency and gain
+      let frequency = getFrequencyFromXPos(currentX);
+      frequency = Math.max(1, Math.min(21500, frequency)); // Clamp to 1-21500 Hz
+
+      let gaindB = -(offsetY / SVG_HEIGHT) * 60; // Map pixel offset to dB range
+      gaindB = Math.max(-30, Math.min(30, gaindB)); // Clamp to -30 to +30 dB
+
+      // Debug output
+      console.log(
+        `Frequency: ${frequency.toFixed(2)} Hz | Gain: ${gaindB.toFixed(2)} dB`
+      );
+
+      // Update node position
+      setNodePositions((prev) => ({
+        ...prev,
+        [draggingNode]: { x: offsetX, y: offsetY },
+      }));
+    }
   }
 
   /**
@@ -206,6 +320,8 @@ export default function Controls({ volume, onVolumeStart }) {
    */
   function handleMouseUp() {
     setDraggingNode(null);
+    setIsShiftDrag(false);
+    shiftDragStartYRef.current = null;
   }
 
   /**
@@ -267,6 +383,43 @@ export default function Controls({ volume, onVolumeStart }) {
           viewBox="0 0 1000 500"
           preserveAspectRatio="none"
         >
+          {/* SVG Defs for Gradients */}
+          <defs>
+            {frequencies.map((freq, index) => {
+              const isShelf = index === 2 || index === 12;
+              const nodeColor = isShelf
+                ? "rgb(138 104 158)"
+                : "rgb(198 246 221)";
+              const nodePos = getNodePosition(index);
+              const cy = nodePos.y;
+
+              // Gradient transitions from node color at peak (cy) to dark at center (250)
+              const y1 = Math.min(cy, CENTER_Y);
+              const y2 = Math.max(cy, CENTER_Y);
+
+              return (
+                <linearGradient
+                  key={`grad-${freq}`}
+                  id={`gradient-${index}`}
+                  x1="0%"
+                  y1={`${y1}`}
+                  x2="0%"
+                  y2={`${y2}`}
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor={cy < CENTER_Y ? nodeColor : "#2c3e5000"}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={cy < CENTER_Y ? "#2c3e5000" : nodeColor}
+                  />
+                </linearGradient>
+              );
+            })}
+          </defs>
+
           {/* Y-AXIS: Gain Labels (-25 to +25 dB) */}
           {[25, 20, 15, 10, 5, 0, -5, -10, -15, -20, -25].map((label) => {
             // Map dB value to Y coordinate (250 = 0dB center)
@@ -350,12 +503,8 @@ export default function Controls({ volume, onVolumeStart }) {
                 {/* Bell curve visualization */}
                 {bellCurvePath && (
                   <path
-                    d={bellCurvePath}
-                    stroke={
-                      nodePositions[index]?.y > 0
-                        ? "rgb(138 104 158)"
-                        : "rgb(255 100 100)"
-                    }
+                    d={bellCurvePath.path}
+                    stroke={`url(#gradient-${index})`}
                     strokeWidth="2"
                     fill="none"
                     opacity="0.6"
@@ -368,7 +517,13 @@ export default function Controls({ volume, onVolumeStart }) {
                     cx={nodePos.x}
                     cy={nodePos.y}
                     r={NODE_RADIUS}
-                    fill={isShelf ? "rgb(138 104 158)" : "rgb(198 246 221)"}
+                    fill={
+                      draggingNode === index
+                        ? "#2c3e50"
+                        : isShelf
+                        ? "rgb(138 104 158)"
+                        : "rgb(198 246 221)"
+                    }
                     stroke={
                       draggingNode === index
                         ? "rgb(255 195 0)"
