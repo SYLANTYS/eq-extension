@@ -5,10 +5,67 @@
 
 console.log("[OFFSCREEN] Offscreen audio script loaded");
 
-// Map<tabId, { audioContext, sourceNode, gainNode, mediaStream }>
+// Map<tabId, { audioContext, sourceNode, gainNode, mediaStream, eqFilters }>
 // Stores isolated audio graphs, one per tab.
 // Multiple tabs can have active audio simultaneously.
+// eqFilters: array of 11 BiquadFilterNode instances (indices 2-12)
 const audioGraphs = new Map();
+
+// Standard frequency bands used in audio processing (must match Controls.jsx)
+const FREQUENCIES = [
+  5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
+];
+
+// Create EQ filter nodes for a given audio graph
+// Returns array of 13 biquad filters (indices 0-1 are transparent, 2-12 are interactive)
+function createEqFilters(audioContext) {
+  const filters = [];
+
+  // Create 13 biquad filter nodes (matching Controls.jsx frequency array)
+  for (let i = 0; i < FREQUENCIES.length; i++) {
+    const biquad = audioContext.createBiquadFilter();
+    biquad.frequency.value = FREQUENCIES[i];
+    biquad.gain.value = 0; // No boost/cut by default
+
+    // Determine filter type based on index
+    if (i === 0 || i === 1) {
+      // Inactive indices (5Hz, 10Hz) - set to peaking to pass through transparently
+      biquad.type = "peaking";
+      biquad.Q.value = 0.3;
+    } else if (i === 2) {
+      // Low shelf (80 Hz)
+      biquad.type = "lowshelf";
+      biquad.Q.value = 0.75;
+    } else if (i === 12) {
+      // High shelf (20.48 kHz)
+      biquad.type = "highshelf";
+      biquad.Q.value = 0.75;
+    } else if (i >= 3 && i <= 11) {
+      // Mid-range peaking filters
+      biquad.type = "peaking";
+      biquad.Q.value = 0.3;
+    }
+
+    filters.push(biquad);
+  }
+
+  return filters;
+}
+
+// Connect EQ filters in series: source → filter[0] → filter[1] → ... → destination
+function connectEqChain(sourceNode, filters, gainNode, destination) {
+  let previousNode = sourceNode;
+
+  // Connect all filters in series
+  for (const filter of filters) {
+    previousNode.connect(filter);
+    previousNode = filter;
+  }
+
+  // Final connection: last filter → gain → destination
+  previousNode.connect(gainNode);
+  gainNode.connect(destination);
+}
 
 // Runtime message handler for background → offscreen control messages.
 // Wrapped in an async IIFE to allow `await` inside.
@@ -58,29 +115,36 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
 
         // Build the audio graph for this tab:
-        // Tab Audio → Gain → Speakers
+        // Tab Audio → EQ Filters (series) → Gain → Speakers
         const sourceNode = audioContext.createMediaStreamSource(mediaStream);
         const gainNode = audioContext.createGain();
+        const eqFilters = createEqFilters(audioContext);
 
         // Unity gain by default (no volume change)
         gainNode.gain.value = 1.0;
 
-        sourceNode.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+        // Connect: source → eqFilters (series) → gain → destination
+        connectEqChain(
+          sourceNode,
+          eqFilters,
+          gainNode,
+          audioContext.destination
+        );
 
-        // Store this tab's audio graph
+        // Store this tab's audio graph including EQ filters
         audioGraphs.set(tabId, {
           audioContext,
           sourceNode,
           gainNode,
           mediaStream,
           streamId: msg.streamId,
+          eqFilters,
         });
 
         console.log(
           "[OFFSCREEN] Audio pipeline ready for tab",
           tabId,
-          "(source → gain → destination)"
+          "(source → 13 EQ filters → gain → destination)"
         );
 
         sendResponse({ ok: true, tabId });
@@ -192,6 +256,103 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       sendResponse({ ok: true, streamIds });
       return;
+    }
+
+    // =====================
+    // UPDATE_EQ_NODES
+    // =====================
+    // Updates EQ filter parameters for a specific tab.
+    // Expects: {
+    //   nodeGainValues: { [index]: dB },
+    //   nodeFrequencyValues: { [index]: Hz },
+    //   nodeQValues: { [index]: Q },
+    //   nodeBaseQValues: { [index]: baseQ }
+    // }
+    if (msg?.type === "UPDATE_EQ_NODES") {
+      try {
+        const graph = audioGraphs.get(tabId);
+        if (!graph || !graph.eqFilters) {
+          sendResponse({ ok: false, error: "No audio graph for tab" });
+          return;
+        }
+
+        const { nodeGainValues, nodeFrequencyValues, nodeQValues } = msg;
+
+        // Update each filter that has changed
+        for (let i = 0; i < FREQUENCIES.length; i++) {
+          const filter = graph.eqFilters[i];
+
+          if (nodeFrequencyValues && i in nodeFrequencyValues) {
+            filter.frequency.setValueAtTime(
+              nodeFrequencyValues[i],
+              graph.audioContext.currentTime
+            );
+          }
+
+          if (nodeQValues && i in nodeQValues) {
+            filter.Q.setValueAtTime(
+              nodeQValues[i],
+              graph.audioContext.currentTime
+            );
+          }
+
+          if (nodeGainValues && i in nodeGainValues) {
+            filter.gain.setValueAtTime(
+              nodeGainValues[i],
+              graph.audioContext.currentTime
+            );
+          }
+        }
+
+        sendResponse({ ok: true });
+        return;
+      } catch (e) {
+        console.warn("[OFFSCREEN] UPDATE_EQ_NODES failed:", e);
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    }
+
+    // =====================
+    // GET_EQ_NODES
+    // =====================
+    // Returns current EQ filter parameters for a specific tab.
+    // Used during initialization to populate UI state from Web Audio API.
+    if (msg?.type === "GET_EQ_NODES") {
+      try {
+        const graph = audioGraphs.get(tabId);
+        if (!graph || !graph.eqFilters) {
+          sendResponse({ ok: false, error: "No audio graph for tab" });
+          return;
+        }
+
+        const nodeGainValues = {};
+        const nodeFrequencyValues = {};
+        const nodeQValues = {};
+
+        // Read current filter values
+        for (let i = 0; i < FREQUENCIES.length; i++) {
+          const filter = graph.eqFilters[i];
+
+          // Only include non-default values
+          if (filter.gain.value !== 0) {
+            nodeGainValues[i] = filter.gain.value;
+          }
+
+          nodeFrequencyValues[i] = filter.frequency.value;
+          nodeQValues[i] = filter.Q.value;
+        }
+
+        sendResponse({
+          ok: true,
+          nodeGainValues,
+          nodeFrequencyValues,
+          nodeQValues,
+        });
+        return;
+      } catch (e) {
+        console.warn("[OFFSCREEN] GET_EQ_NODES failed:", e);
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
     }
 
     // =====================

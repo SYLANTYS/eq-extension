@@ -9,6 +9,14 @@ export default function Popup() {
   const [eqActive, setEqActive] = useState(true);
   const [currentTabId, setCurrentTabId] = useState(null);
   const [activeTab, setActiveTab] = useState("Controls");
+  const controlsRef = useRef(null);
+
+  // EQ States (lifted from Controls)
+  const [nodePositions, setNodePositions] = useState({});
+  const [nodeBaseQValues, setNodeBaseQValues] = useState({});
+  const [nodeQValues, setNodeQValues] = useState({});
+  const [nodeGainValues, setNodeGainValues] = useState({});
+  const [nodeFrequencyValues, setNodeFrequencyValues] = useState({});
 
   // Sends a message to the background script and awaits a response.
   function sendMessage(msg) {
@@ -109,6 +117,100 @@ export default function Popup() {
     });
   }
 
+  // Resets all EQ filters to default values
+  function handleResetFilters() {
+    if (controlsRef.current) {
+      controlsRef.current.resetFilters();
+    }
+  }
+
+  // Update EQ nodes and sync to Web Audio API
+  async function handleEqNodesChange(
+    newPositions,
+    newGainValues,
+    newFrequencyValues,
+    newQValues,
+    newBaseQValues
+  ) {
+    // Update local state
+    setNodePositions(newPositions);
+    setNodeGainValues(newGainValues);
+    setNodeFrequencyValues(newFrequencyValues);
+    setNodeQValues(newQValues);
+    setNodeBaseQValues(newBaseQValues);
+
+    // Sync to Web Audio API via background
+    if (currentTabId) {
+      await sendMessage({
+        type: "UPDATE_EQ_NODES",
+        tabId: currentTabId,
+        nodeGainValues: newGainValues,
+        nodeFrequencyValues: newFrequencyValues,
+        nodeQValues: newQValues,
+      });
+    }
+  }
+
+  // Helper function to convert Q back to baseQ
+  // Formula: Q = isShelf ? baseQ : baseQ * (1.5 - Math.abs(gaindB) / 30)
+  // Reverse: baseQ = Q / (1.5 - Math.abs(gaindB) / 30)
+  function qToBaseQ(index, q, gaindB) {
+    const isShelf = index === 2 || index === 12;
+    if (isShelf) {
+      return q; // For shelves, Q and baseQ are the same
+    } else {
+      const divisor = 1.5 - Math.abs(gaindB) / 30;
+      return divisor !== 0 ? q / divisor : 0.3; // Fallback to default
+    }
+  }
+
+  // Convert node positions from Web Audio API values to UI coordinates
+  // This is used during initialization to populate node positions
+  function calculateNodePositions(
+    nodeFrequencyValues,
+    nodeGainValues,
+    frequencies
+  ) {
+    const positions = {};
+    const SVG_HEIGHT = 500;
+    const CENTER_Y = 250;
+    const X_AXIS_START = 120;
+    const X_AXIS_END = 15;
+    const USABLE_WIDTH = 1000 - X_AXIS_START - X_AXIS_END;
+    const GEOMETRIC_RATIO = 1.2;
+
+    const maxIndex = frequencies.length - 1;
+
+    for (const indexStr in nodeFrequencyValues) {
+      const index = parseInt(indexStr, 10);
+      const freq = nodeFrequencyValues[index];
+      const gainDb = nodeGainValues[index] ?? 0;
+
+      // Calculate X offset based on frequency
+      const baseX =
+        X_AXIS_START +
+        (USABLE_WIDTH * (Math.pow(GEOMETRIC_RATIO, index) - 1)) /
+          (Math.pow(GEOMETRIC_RATIO, maxIndex) - 1);
+
+      // Reverse frequency mapping to get X position
+      const minFreq = frequencies[0];
+      const maxFreq = frequencies[frequencies.length - 1];
+      const logRatio = Math.log(freq / minFreq) / Math.log(maxFreq / minFreq);
+      const indexFloat = logRatio * maxIndex;
+      const denominator = Math.pow(GEOMETRIC_RATIO, maxIndex) - 1;
+      const normalizedX =
+        (Math.pow(GEOMETRIC_RATIO, indexFloat) - 1) / denominator;
+      const currentX = X_AXIS_START + normalizedX * USABLE_WIDTH;
+
+      const offsetX = currentX - baseX;
+      const offsetY = -(gainDb / 60) * SVG_HEIGHT;
+
+      positions[index] = { x: offsetX, y: offsetY };
+    }
+
+    return positions;
+  }
+
   // On mount, ensure backend is ready and check if EQ is already active for this tab.
   useEffect(() => {
     let cancelled = false;
@@ -148,7 +250,56 @@ export default function Popup() {
 
       if (status?.active) {
         setEqActive(true);
+      }
 
+      if (cancelled) return;
+
+      // Fetch current EQ state from Web Audio API
+      try {
+        const eqNodeStatus = await sendMessage({
+          type: "GET_EQ_NODES",
+          tabId: tab.id,
+        });
+
+        if (eqNodeStatus?.ok) {
+          const gainValues = eqNodeStatus.nodeGainValues || {};
+          const freqValues = eqNodeStatus.nodeFrequencyValues || {};
+          const qValues = eqNodeStatus.nodeQValues || {};
+
+          // Calculate nodePositions from frequency/gain values
+          const frequencies = [
+            5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
+          ];
+          const positions = calculateNodePositions(
+            freqValues,
+            gainValues,
+            frequencies
+          );
+
+          // Convert Q values back to baseQ
+          const baseQValues = {};
+          for (const indexStr in qValues) {
+            const index = parseInt(indexStr, 10);
+            const baseQ = qToBaseQ(
+              index,
+              qValues[index],
+              gainValues[index] ?? 0
+            );
+            baseQValues[index] = baseQ;
+          }
+
+          // Update states
+          setNodePositions(positions);
+          setNodeGainValues(gainValues);
+          setNodeFrequencyValues(freqValues);
+          setNodeQValues(qValues);
+          setNodeBaseQValues(baseQValues);
+        }
+      } catch (e) {
+        console.warn("[Popup] Failed to fetch EQ state:", e);
+      }
+
+      if (status?.active) {
         return; // already running, don't auto-start again
       }
 
@@ -244,7 +395,17 @@ export default function Popup() {
 
         {/* ================= MAIN BODY ================= */}
         {activeTab === "Controls" && (
-          <Controls volume={volume} onVolumeStart={handleVolumeStart} />
+          <Controls
+            ref={controlsRef}
+            volume={volume}
+            onVolumeStart={handleVolumeStart}
+            nodePositions={nodePositions}
+            nodeGainValues={nodeGainValues}
+            nodeFrequencyValues={nodeFrequencyValues}
+            nodeQValues={nodeQValues}
+            nodeBaseQValues={nodeBaseQValues}
+            onEqNodesChange={handleEqNodesChange}
+          />
         )}
         {activeTab === "Guide" && <Guide />}
         {activeTab === "ActiveTabs" && <ActiveTabs />}
@@ -259,26 +420,29 @@ export default function Popup() {
               className="border border-eq-yellow rounded-xs text-sm w-20 outline-none"
             />
 
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
+            <button className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
               + Save Preset
             </button>
 
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
+            <button className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
               - Delete Preset
             </button>
 
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
+            <button
+              onClick={handleResetFilters}
+              className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+            >
               Reset Filters
             </button>
           </div>
 
           {/* Bottom row: quick presets (right aligned) */}
           <div className="flex justify-end gap-2 mt-3 flex-wrap">
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
+            <button className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
               Bass Boost
             </button>
 
-            <button className="px-1.5 border border-eq-yellow rounded-xs">
+            <button className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
               YouTube
             </button>
           </div>

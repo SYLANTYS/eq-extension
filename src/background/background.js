@@ -375,4 +375,47 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     })();
     return true;
   }
+
+  // =====================
+  // UPDATE_EQ_NODES
+  // =====================
+  // Forward EQ parameter updates to offscreen.
+  // Updates: frequency, gain, Q for specific nodes on a tab.
+  if (msg?.type === "UPDATE_EQ_NODES") {
+    (async () => {
+      try {
+        const res = await sendToOffscreen({
+          type: "UPDATE_EQ_NODES",
+          tabId: msg.tabId,
+          nodeGainValues: msg.nodeGainValues,
+          nodeFrequencyValues: msg.nodeFrequencyValues,
+          nodeQValues: msg.nodeQValues,
+        });
+        sendResponse(res ?? { ok: true });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    })();
+    return true;
+  }
+
+  // =====================
+  // GET_EQ_NODES
+  // =====================
+  // Fetch current EQ filter parameters from offscreen.
+  // Used during initialization to populate UI state.
+  if (msg?.type === "GET_EQ_NODES") {
+    (async () => {
+      try {
+        const res = await sendToOffscreen({
+          type: "GET_EQ_NODES",
+          tabId: msg.tabId,
+        });
+        sendResponse(res ?? { ok: true });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    })();
+    return true;
+  }
 });

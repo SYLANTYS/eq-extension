@@ -45,9 +45,6 @@ Load in Chrome:
 
 ## TODO
 
-- Web Audio EQ graph (use the states: frequency, gain, Q)
-  - When initializing controls (useEffect) it needs to set values from Web Audio API
-  - Including: frequency, gain, both Q and baseQ (convert backwards), nodePosition
 - Presets (save / delete) to local storage
 - Spectrum visualizer
 - Pro Tab

@@ -16,13 +16,30 @@ import { generateBellCurve } from "./graphs";
  * - Frequency range: 1-21500 Hz
  * - Gain range: -30 to +30 dB
  * - Master volume control on left sidebar
+ *
+ * Props:
+ * - volume: master volume gain (0-1+)
+ * - onVolumeStart: handler for volume slider mousedown
+ * - nodePositions: { [index]: { x, y } } - draggable node positions
+ * - nodeGainValues: { [index]: dB } - gain values from Web Audio API
+ * - nodeFrequencyValues: { [index]: Hz } - frequency values from Web Audio API
+ * - nodeQValues: { [index]: Q } - Q values from Web Audio API
+ * - nodeBaseQValues: { [index]: baseQ } - base Q values for shift-drag
+ * - onEqNodesChange: callback(positions, gainValues, freqValues, qValues, baseQValues)
  */
-const Controls = forwardRef(function Controls({ volume, onVolumeStart }, ref) {
-  const [nodePositions, setNodePositions] = useState({}); // { [index]: { x, y } }
-  const [nodeBaseQValues, setNodeBaseQValues] = useState({}); // { [index]: base Q value (adjustable via shift+drag) }
-  const [nodeQValues, setNodeQValues] = useState({}); // { [index]: computed dynamic Q value }
-  const [nodeGainValues, setNodeGainValues] = useState({}); // { [index]: gain in dB }
-  const [nodeFrequencyValues, setNodeFrequencyValues] = useState({}); // { [index]: frequency in Hz }
+const Controls = forwardRef(function Controls(
+  {
+    volume,
+    onVolumeStart,
+    nodePositions,
+    nodeGainValues,
+    nodeFrequencyValues,
+    nodeQValues,
+    nodeBaseQValues,
+    onEqNodesChange,
+  },
+  ref
+) {
   const [draggingNode, setDraggingNode] = useState(null);
   const [isShiftDrag, setIsShiftDrag] = useState(false);
   const svgRef = useRef(null);
@@ -34,11 +51,7 @@ const Controls = forwardRef(function Controls({ volume, onVolumeStart }, ref) {
   // Expose resetFilters method via ref
   useImperativeHandle(ref, () => ({
     resetFilters() {
-      setNodePositions({});
-      setNodeBaseQValues({});
-      setNodeQValues({});
-      setNodeGainValues({});
-      setNodeFrequencyValues({});
+      onEqNodesChange({}, {}, {}, {}, {});
       console.log("[Controls] All EQ nodes reset to defaults");
     },
   }));
@@ -196,12 +209,20 @@ const Controls = forwardRef(function Controls({ volume, onVolumeStart }, ref) {
       let baseQ = Math.exp(logQ);
       baseQ = Math.max(0.1, Math.min(2.0, baseQ));
 
-      console.log(`[Node ${draggingNode}] Base Q: ${baseQ.toFixed(2)}`);
+      // console.log(`[Node ${draggingNode}] Base Q: ${baseQ.toFixed(2)}`);
 
-      setNodeBaseQValues((prev) => ({
-        ...prev,
+      // Update parent state via callback
+      const newBaseQValues = {
+        ...nodeBaseQValues,
         [draggingNode]: baseQ,
-      }));
+      };
+      onEqNodesChange(
+        nodePositions,
+        nodeGainValues,
+        nodeFrequencyValues,
+        nodeQValues,
+        newBaseQValues
+      );
       return;
     }
 
@@ -222,33 +243,41 @@ const Controls = forwardRef(function Controls({ volume, onVolumeStart }, ref) {
     const baseQ = nodeBaseQValues[draggingNode] ?? (isShelf ? 0.75 : 0.3);
     const Q = isShelf ? baseQ : baseQ * (1.5 - Math.abs(gaindB) / 30);
 
-    // Update state
-    setNodePositions((prev) => ({
-      ...prev,
+    // Update parent state via callback
+    const newPositions = {
+      ...nodePositions,
       [draggingNode]: { x: offsetX, y: offsetY },
-    }));
-    setNodeGainValues((prev) => ({
-      ...prev,
+    };
+    const newGainValues = {
+      ...nodeGainValues,
       [draggingNode]: gaindB,
-    }));
-    setNodeFrequencyValues((prev) => ({
-      ...prev,
+    };
+    const newFrequencyValues = {
+      ...nodeFrequencyValues,
       [draggingNode]: frequency,
-    }));
-    setNodeQValues((prev) => ({
-      ...prev,
+    };
+    const newQValues = {
+      ...nodeQValues,
       [draggingNode]: Q,
-    }));
+    };
+
+    onEqNodesChange(
+      newPositions,
+      newGainValues,
+      newFrequencyValues,
+      newQValues,
+      nodeBaseQValues
+    );
 
     // Debug output with stored state values
-    const filterType = isShelf ? "Shelf" : "Peaking";
-    console.log(
-      `[Node ${draggingNode}] ${filterType} → Freq: ${frequency.toFixed(
-        2
-      )} Hz | Gain: ${gaindB.toFixed(2)} dB | Base Q: ${baseQ.toFixed(
-        2
-      )} | Q: ${Q.toFixed(2)}`
-    );
+    // const filterType = isShelf ? "Shelf" : "Peaking";
+    // console.log(
+    //   `[Node ${draggingNode}] ${filterType} → Freq: ${frequency.toFixed(
+    //     2
+    //   )} Hz | Gain: ${gaindB.toFixed(2)} dB | Base Q: ${baseQ.toFixed(
+    //     2
+    //   )} | Q: ${Q.toFixed(2)}`
+    // );
   }
 
   /**
