@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import { generateBellCurve } from "./graphs";
 
 /**
@@ -11,7 +17,7 @@ import { generateBellCurve } from "./graphs";
  * - Gain range: -30 to +30 dB
  * - Master volume control on left sidebar
  */
-export default function Controls({ volume, onVolumeStart }) {
+const Controls = forwardRef(function Controls({ volume, onVolumeStart }, ref) {
   const [nodePositions, setNodePositions] = useState({}); // { [index]: { x, y } }
   const [nodeBaseQValues, setNodeBaseQValues] = useState({}); // { [index]: base Q value (adjustable via shift+drag) }
   const [nodeQValues, setNodeQValues] = useState({}); // { [index]: computed dynamic Q value }
@@ -24,6 +30,18 @@ export default function Controls({ volume, onVolumeStart }) {
 
   // Throttle tracking for ensuring backend is ready (1 second cooldown)
   const lastEnsureTimeRef = useRef(0);
+
+  // Expose resetFilters method via ref
+  useImperativeHandle(ref, () => ({
+    resetFilters() {
+      setNodePositions({});
+      setNodeBaseQValues({});
+      setNodeQValues({});
+      setNodeGainValues({});
+      setNodeFrequencyValues({});
+      console.log("[Controls] All EQ nodes reset to defaults");
+    },
+  }));
 
   // Throttled ensure backend ready with 1 second cooldown
   async function throttledEnsureBackend() {
@@ -480,4 +498,6 @@ export default function Controls({ volume, onVolumeStart }) {
       </main>
     </div>
   );
-}
+});
+
+export default Controls;
