@@ -62,6 +62,34 @@ export default function Popup() {
   // Throttle tracking for ensuring backend is ready (1 second cooldown)
   const lastEnsureTimeRef = useRef(0);
 
+  // Build complete EQ value objects with all indexes (defaults + overrides)
+  function buildCompleteEqValues(
+    overrideGainValues = {},
+    overrideFreqValues = {},
+    overrideQValues = {}
+  ) {
+    const frequencies = [
+      5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
+    ];
+    const completeGainValues = {};
+    const completeFreqValues = {};
+    const completeQValues = {};
+
+    // Set all indexes to defaults first
+    for (let i = 0; i < frequencies.length; i++) {
+      completeGainValues[i] = 0; // 0 dB default
+      completeFreqValues[i] = frequencies[i];
+      completeQValues[i] = i === 2 || i === 12 ? 0.75 : 0.3; // Shelf Q vs peaking Q
+    }
+
+    // Override with provided values
+    Object.assign(completeGainValues, overrideGainValues);
+    Object.assign(completeFreqValues, overrideFreqValues);
+    Object.assign(completeQValues, overrideQValues);
+
+    return { completeGainValues, completeFreqValues, completeQValues };
+  }
+
   // Throttled ensure backend ready with 1 second cooldown
   async function throttledEnsureBackend() {
     const now = Date.now();
@@ -207,40 +235,29 @@ export default function Popup() {
 
   // Apply Bass Boost preset (index 2: 120 Hz, +5 dB gain, Q=0.75; all others default)
   async function handleBassBoost() {
-    const frequencies = [
-      5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
-    ];
-    const bassBoostGainValues = {};
-    const bassBoostFreqValues = {};
-    const bassBoostQValues = {};
-
-    // Set all indexes to default, then override index 2 with boost
-    for (let i = 0; i < frequencies.length; i++) {
-      bassBoostGainValues[i] = i === 2 ? 5 : 0; // 5 dB gain for index 2, 0 dB for others
-      bassBoostFreqValues[i] = i === 2 ? 120 : frequencies[i]; // 120 Hz for index 2, default freq for others
-      bassBoostQValues[i] = i === 2 || i === 12 ? 0.75 : 0.3; // Shelf Q for index 2 and 12, peaking Q for others
-    }
+    const { completeGainValues, completeFreqValues, completeQValues } =
+      buildCompleteEqValues(
+        { 2: 5 }, // 5 dB gain for index 2
+        { 2: 120 }, // 120 Hz for index 2
+        { 2: 0.75 } // Q for index 2
+      );
 
     // Initialize UI state
-    initializeEqState(
-      bassBoostGainValues,
-      bassBoostFreqValues,
-      bassBoostQValues
-    );
+    initializeEqState(completeGainValues, completeFreqValues, completeQValues);
 
     // Sync to Web Audio API
     if (currentTabId) {
       await sendMessage({
         type: "UPDATE_EQ_NODES",
         tabId: currentTabId,
-        nodeGainValues: bassBoostGainValues,
-        nodeFrequencyValues: bassBoostFreqValues,
-        nodeQValues: bassBoostQValues,
+        nodeGainValues: completeGainValues,
+        nodeFrequencyValues: completeFreqValues,
+        nodeQValues: completeQValues,
       });
     }
   }
 
-  // Load preset and apply it
+  // Load preset and apply it (resets all indexes to defaults, then applies preset)
   async function handleLoadPreset(presetName) {
     const preset = savedPresets.find((p) => p.name === presetName);
     if (!preset) return;
@@ -248,21 +265,24 @@ export default function Popup() {
     setSelectedPreset(presetName);
     setPresetName(presetName);
 
-    // Initialize UI state from preset
-    initializeEqState(
-      preset.nodeGainValues,
-      preset.nodeFrequencyValues,
-      preset.nodeQValues
-    );
+    const { completeGainValues, completeFreqValues, completeQValues } =
+      buildCompleteEqValues(
+        preset.nodeGainValues,
+        preset.nodeFrequencyValues,
+        preset.nodeQValues
+      );
+
+    // Initialize UI state with complete values
+    initializeEqState(completeGainValues, completeFreqValues, completeQValues);
 
     // Sync to Web Audio API
     if (currentTabId) {
       await sendMessage({
         type: "UPDATE_EQ_NODES",
         tabId: currentTabId,
-        nodeGainValues: preset.nodeGainValues,
-        nodeFrequencyValues: preset.nodeFrequencyValues,
-        nodeQValues: preset.nodeQValues,
+        nodeGainValues: completeGainValues,
+        nodeFrequencyValues: completeFreqValues,
+        nodeQValues: completeQValues,
       });
     }
   }
@@ -631,7 +651,7 @@ export default function Popup() {
 
           {/* Saved Presets + Quick Presets Row (right aligned) */}
           <div className="flex justify-end gap-2 mt-3 flex-wrap">
-            {savedPresets.map((preset) => (
+            {[...savedPresets].reverse().map((preset) => (
               <button
                 key={preset.name}
                 onClick={() => handleLoadPreset(preset.name)}
