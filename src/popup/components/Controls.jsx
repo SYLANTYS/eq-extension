@@ -7,6 +7,16 @@ import {
 } from "react";
 import { generateBellCurve } from "./graphs";
 
+// Theme colors from index.css
+const COLORS = {
+  BACKGROUND: "#2c3e50",
+  TEXT: "#f5deb3",
+  POINT: "#c6f6dd",
+  SHELF: "#8a689e",
+  BACKGROUND_TRANSPARENT: "#2c3e5000",
+  TEXT_TRANSPARENT: "#f5deb350",
+};
+
 /**
  * Controls Component - Interactive EQ Visualizer
  *
@@ -379,9 +389,7 @@ const Controls = forwardRef(function Controls(
           <defs>
             {frequencies.map((freq, index) => {
               const isShelf = index === 2 || index === 12;
-              const nodeColor = isShelf
-                ? "rgb(138 104 158)"
-                : "rgb(198 246 221)";
+              const nodeColor = isShelf ? COLORS.SHELF : COLORS.POINT;
               const nodePos = getNodePosition(index);
               const cy = nodePos.y;
 
@@ -401,11 +409,15 @@ const Controls = forwardRef(function Controls(
                 >
                   <stop
                     offset="0%"
-                    stopColor={cy < CENTER_Y ? nodeColor : "#2c3e5000"}
+                    stopColor={
+                      cy < CENTER_Y ? nodeColor : COLORS.BACKGROUND_TRANSPARENT
+                    }
                   />
                   <stop
                     offset="100%"
-                    stopColor={cy < CENTER_Y ? "#2c3e5000" : nodeColor}
+                    stopColor={
+                      cy < CENTER_Y ? COLORS.BACKGROUND_TRANSPARENT : nodeColor
+                    }
                   />
                 </linearGradient>
               );
@@ -423,14 +435,14 @@ const Controls = forwardRef(function Controls(
                   y1={yPos}
                   x2="8"
                   y2={yPos}
-                  stroke="#f5deb3"
+                  stroke={COLORS.TEXT}
                   strokeWidth="1"
                 />
                 <text
                   x="12"
                   y={yPos + 4}
                   fontSize="18"
-                  fill="#f5deb3"
+                  fill={COLORS.TEXT}
                   textAnchor="start"
                   className="select-none"
                 >
@@ -473,7 +485,7 @@ const Controls = forwardRef(function Controls(
                   y1="475"
                   x2={xPos}
                   y2="500"
-                  stroke="#f5deb3"
+                  stroke={COLORS.TEXT}
                   strokeWidth="1"
                   pointerEvents="none"
                 />
@@ -482,7 +494,7 @@ const Controls = forwardRef(function Controls(
                   y1="0"
                   x2={xPos}
                   y2="25"
-                  stroke="#f5deb3"
+                  stroke={COLORS.TEXT}
                   strokeWidth="1"
                   pointerEvents="none"
                 />
@@ -493,7 +505,7 @@ const Controls = forwardRef(function Controls(
                   y1="235"
                   x2={xPos}
                   y2="265"
-                  stroke="#f5deb350"
+                  stroke={COLORS.TEXT_TRANSPARENT}
                   strokeWidth="1"
                 />
 
@@ -502,7 +514,7 @@ const Controls = forwardRef(function Controls(
                   x={xPos}
                   y="470"
                   fontSize="18"
-                  fill="#f5deb3"
+                  fill={COLORS.TEXT}
                   textAnchor="middle"
                   className="select-none"
                   pointerEvents="none"
@@ -530,17 +542,17 @@ const Controls = forwardRef(function Controls(
                     r={NODE_RADIUS}
                     fill={
                       draggingNode === index
-                        ? "#2c3e50"
+                        ? COLORS.BACKGROUND
                         : isShelf
-                        ? "rgb(138 104 158)"
-                        : "rgb(198 246 221)"
+                        ? COLORS.SHELF
+                        : COLORS.POINT
                     }
                     stroke={
                       draggingNode === index
                         ? "rgb(255 195 0)"
                         : isShelf
-                        ? "rgb(138 104 158)"
-                        : "rgb(198 246 221)"
+                        ? COLORS.SHELF
+                        : COLORS.POINT
                     }
                     strokeWidth={draggingNode === index ? "2" : "1"}
                     className="cursor-pointer"

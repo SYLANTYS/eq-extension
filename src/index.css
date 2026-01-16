@@ -5,8 +5,8 @@
 @theme {
   --color-eq-blue: #2c3e50;
   --color-eq-yellow: #f5deb3;
-  --color-eq-point: rgb(198 246 221);
-  --color-eq-shelf: rgb(138 104 158);
+  --color-eq-point: #c6f6dd;
+  --color-eq-shelf: #8a689e;
 }
 
 .scrollbar-none {
