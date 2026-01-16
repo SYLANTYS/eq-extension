@@ -23,6 +23,9 @@ export default function Popup() {
   const [savedPresets, setSavedPresets] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState(null);
 
+  // Spectrum Visualizer State
+  const [spectrumData, setSpectrumData] = useState([]);
+
   // Sends a message to the background script and awaits a response.
   function sendMessage(msg) {
     return new Promise((resolve) => {
@@ -543,6 +546,38 @@ export default function Popup() {
     };
   }, []);
 
+  // Fetch spectrum data continuously when EQ is active
+  useEffect(() => {
+    if (!eqActive || !currentTabId) return;
+
+    let animationFrameId;
+
+    async function fetchSpectrum() {
+      try {
+        const res = await sendMessage({
+          type: "GET_SPECTRUM_DATA",
+          tabId: currentTabId,
+        });
+
+        if (res?.ok && res?.spectrumData) {
+          setSpectrumData(res.spectrumData);
+        }
+      } catch (e) {
+        console.warn("[Popup] Failed to fetch spectrum data:", e);
+      }
+
+      // Schedule next fetch for next animation frame
+      animationFrameId = requestAnimationFrame(fetchSpectrum);
+    }
+
+    // Start fetching spectrum data
+    fetchSpectrum();
+
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
+  }, [eqActive, currentTabId]);
+
   return (
     <div className="min-w-[800px] min-h-[600px] h-screen w-full overflow-hidden bg-eq-blue text-eq-yellow flex flex-col relative">
       <div className="flex-1 overflow-y-auto pb-19.5 scrollbar-none">
@@ -633,6 +668,7 @@ export default function Popup() {
             nodeQValues={nodeQValues}
             nodeBaseQValues={nodeBaseQValues}
             onEqNodesChange={handleEqNodesChange}
+            spectrumData={spectrumData}
           />
         )}
         {activeTab === "Guide" && <Guide />}

@@ -5,10 +5,11 @@
 
 console.log("[OFFSCREEN] Offscreen audio script loaded");
 
-// Map<tabId, { audioContext, sourceNode, gainNode, mediaStream, eqFilters }>
+// Map<tabId, { audioContext, sourceNode, gainNode, mediaStream, eqFilters, analyserNode }>
 // Stores isolated audio graphs, one per tab.
 // Multiple tabs can have active audio simultaneously.
 // eqFilters: array of 11 BiquadFilterNode instances (indices 2-12)
+// analyserNode: analyser for real-time spectrum data
 const audioGraphs = new Map();
 
 // Standard frequency bands used in audio processing (must match Controls.jsx)
@@ -53,7 +54,13 @@ function createEqFilters(audioContext) {
 }
 
 // Connect EQ filters in series: source → filter[0] → filter[1] → ... → destination
-function connectEqChain(sourceNode, filters, gainNode, destination) {
+function connectEqChain(
+  sourceNode,
+  filters,
+  gainNode,
+  destination,
+  analyserNode = null
+) {
   let previousNode = sourceNode;
 
   // Connect all filters in series
@@ -65,6 +72,11 @@ function connectEqChain(sourceNode, filters, gainNode, destination) {
   // Final connection: last filter → gain → destination
   previousNode.connect(gainNode);
   gainNode.connect(destination);
+
+  // Also tap off analyser from the gain node for spectrum analysis
+  if (analyserNode) {
+    gainNode.connect(analyserNode);
+  }
 }
 
 // Runtime message handler for background → offscreen control messages.
@@ -115,23 +127,29 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
 
         // Build the audio graph for this tab:
-        // Tab Audio → EQ Filters (series) → Gain → Speakers
+        // Tab Audio → EQ Filters (series) → Gain → Speakers + Analyser
         const sourceNode = audioContext.createMediaStreamSource(mediaStream);
         const gainNode = audioContext.createGain();
         const eqFilters = createEqFilters(audioContext);
+        const analyserNode = audioContext.createAnalyser();
+
+        // Configure analyser for spectrum data
+        analyserNode.fftSize = 2048; // Higher FFT size for better frequency resolution
+        analyserNode.smoothingTimeConstant = 0.85;
 
         // Unity gain by default (no volume change)
         gainNode.gain.value = 1.0;
 
-        // Connect: source → eqFilters (series) → gain → destination
+        // Connect: source → eqFilters (series) → gain → destination + analyser
         connectEqChain(
           sourceNode,
           eqFilters,
           gainNode,
-          audioContext.destination
+          audioContext.destination,
+          analyserNode
         );
 
-        // Store this tab's audio graph including EQ filters
+        // Store this tab's audio graph including EQ filters and analyser
         audioGraphs.set(tabId, {
           audioContext,
           sourceNode,
@@ -139,6 +157,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           mediaStream,
           streamId: msg.streamId,
           eqFilters,
+          analyserNode,
         });
 
         console.log(
@@ -351,6 +370,38 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return;
       } catch (e) {
         console.warn("[OFFSCREEN] GET_EQ_NODES failed:", e);
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    }
+
+    // =====================
+    // GET_SPECTRUM_DATA
+    // =====================
+    // Returns real-time frequency spectrum data for a specific tab.
+    // Used by popup to render spectrum visualizer in Controls component.
+    if (msg?.type === "GET_SPECTRUM_DATA") {
+      try {
+        const graph = audioGraphs.get(tabId);
+        if (!graph || !graph.analyserNode) {
+          sendResponse({ ok: false, error: "No audio graph for tab" });
+          return;
+        }
+
+        // Get frequency data from analyser
+        const dataArray = new Uint8Array(graph.analyserNode.frequencyBinCount);
+        graph.analyserNode.getByteFrequencyData(dataArray);
+
+        // Convert to array for transmission
+        const spectrumData = Array.from(dataArray);
+
+        sendResponse({
+          ok: true,
+          spectrumData,
+          binCount: graph.analyserNode.frequencyBinCount,
+        });
+        return;
+      } catch (e) {
+        console.warn("[OFFSCREEN] GET_SPECTRUM_DATA failed:", e);
         sendResponse({ ok: false, error: String(e?.message || e) });
       }
     }

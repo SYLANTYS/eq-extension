@@ -23,6 +23,7 @@ const COLORS = {
  * Features:
  * - 11 draggable frequency bands (20 Hz - 20.48 kHz)
  * - Real-time bell curve visualization for boost/cut
+ * - Real-time spectrum visualizer
  * - Frequency range: 1-21500 Hz
  * - Gain range: -30 to +30 dB
  * - Master volume control on left sidebar
@@ -36,6 +37,7 @@ const COLORS = {
  * - nodeQValues: { [index]: Q } - Q values from Web Audio API
  * - nodeBaseQValues: { [index]: baseQ } - base Q values for shift-drag
  * - onEqNodesChange: callback(positions, gainValues, freqValues, qValues, baseQValues)
+ * - spectrumData: array of frequency bin values (0-255) for real-time spectrum
  */
 const Controls = forwardRef(function Controls(
   {
@@ -47,16 +49,39 @@ const Controls = forwardRef(function Controls(
     nodeQValues,
     nodeBaseQValues,
     onEqNodesChange,
+    spectrumData = [],
   },
   ref
 ) {
   const [draggingNode, setDraggingNode] = useState(null);
   const [isShiftDrag, setIsShiftDrag] = useState(false);
+  const [spectrumEnabled, setSpectrumEnabledState] = useState(false);
   const svgRef = useRef(null);
   const shiftDragStartYRef = useRef(null); // Track initial Y position for shift drag
 
   // Throttle tracking for ensuring backend is ready (1 second cooldown)
   const lastEnsureTimeRef = useRef(0);
+
+  // Load spectrum enabled state from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("spectrumVisualizerEnabled");
+    if (stored !== null) {
+      setSpectrumEnabledState(JSON.parse(stored));
+    }
+  }, []);
+
+  // Save spectrum enabled state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(
+      "spectrumVisualizerEnabled",
+      JSON.stringify(spectrumEnabled)
+    );
+  }, [spectrumEnabled]);
+
+  // Wrapper to update state and trigger localStorage save
+  function setSpectrumEnabled(value) {
+    setSpectrumEnabledState(value);
+  }
 
   // Expose resetFilters method via ref
   useImperativeHandle(ref, () => ({
@@ -353,12 +378,100 @@ const Controls = forwardRef(function Controls(
     return Math.min(Math.max(ratio, 0), 1) * 100;
   }
 
+  /**
+   * Convert frequency value to X position on the logarithmic scale
+   * Uses the same geometric series formula as EQ nodes
+   */
+  function getXPosFromFrequency(frequency) {
+    const minFreq = frequencies[0]; // 5Hz
+    const maxFreq = frequencies[frequencies.length - 1]; // 20480Hz
+    const maxIndex = frequencies.length - 1;
+
+    // Clamp frequency to valid range
+    if (frequency < minFreq) frequency = minFreq;
+    if (frequency > maxFreq) frequency = maxFreq;
+
+    // Calculate position in log scale
+    const logFreqRatio =
+      Math.log(frequency / minFreq) / Math.log(maxFreq / minFreq);
+    const indexFloat = logFreqRatio * maxIndex;
+
+    // Map to X position using geometric series
+    const xRatio =
+      (Math.pow(GEOMETRIC_RATIO, indexFloat) - 1) /
+      (Math.pow(GEOMETRIC_RATIO, maxIndex) - 1);
+    return X_AXIS_START + xRatio * USABLE_WIDTH;
+  }
+
+  /**
+   * Render spectrum analyzer as a high-resolution line graph
+   * Uses all frequency bins for maximum accuracy
+   * Maps entire frequency range (5Hz-20480Hz) to full viewbox width and height
+   * Inverted Y-axis: magnitude 255 at top (y=0), magnitude 0 at bottom (y=500)
+   */
+  function renderSpectrumLine() {
+    if (!spectrumEnabled || !spectrumData || spectrumData.length === 0) {
+      return null;
+    }
+
+    const binCount = spectrumData.length;
+    const points = [];
+
+    // Estimate sample rate and Nyquist frequency
+    // Standard Web Audio contexts use 48kHz sample rate
+    const sampleRate = 48000;
+    const nyquistFrequency = sampleRate / 2; // 24000Hz
+
+    // Generate points for all spectrum bins, mapping to logarithmic frequency scale
+    for (let binIdx = 0; binIdx < binCount; binIdx++) {
+      // Calculate the actual frequency this bin represents
+      const binFrequency = (binIdx / binCount) * nyquistFrequency;
+
+      // Map this frequency to X position using the same log scale as EQ nodes
+      // Clamp frequencies to the valid range (10Hz - 20480Hz)
+      let clampedFrequency = binFrequency;
+      if (binFrequency < 10) {
+        clampedFrequency = 10; // Clamp to 10Hz
+      } else if (binFrequency > frequencies[frequencies.length - 1]) {
+        clampedFrequency = frequencies[frequencies.length - 1]; // Clamp to 20480Hz
+      }
+      const xPos = getXPosFromFrequency(clampedFrequency);
+
+      const magnitude = spectrumData[binIdx] || 0;
+
+      // Use full viewbox height (0-500)
+      // Inverted Y: magnitude 255 = top (0), magnitude 0 = bottom (500)
+      const y = SVG_HEIGHT - (magnitude / 255) * SVG_HEIGHT;
+
+      // Add all points - clamping ensures they stay within the visible range
+      points.push(`${xPos},${y}`);
+    }
+
+    return (
+      <polyline
+        points={points.join(" ")}
+        stroke={COLORS.TEXT}
+        strokeWidth="2"
+        fill="none"
+        opacity="0.6"
+        pointerEvents="none"
+      />
+    );
+  }
+
   return (
     <div className="flex overflow-hidden">
       {/* ===== LEFT SIDEBAR: VOLUME CONTROL ===== */}
       <aside className="w-12 ml-1 flex flex-col items-center justify-between">
         {/* Spectrum visualizer toggle (rotated text) */}
-        <button className="my-6 text-xs -rotate-90 cursor-pointer border border-eq-yellow px-2 rounded-b-sm rounded-t-xs hover:text-eq-blue hover:bg-eq-yellow">
+        <button
+          onClick={() => setSpectrumEnabled(!spectrumEnabled)}
+          className={`my-6 text-xs -rotate-90 cursor-pointer border px-2 rounded-b-sm rounded-t-xs transition-colors ${
+            spectrumEnabled
+              ? "text-eq-blue bg-eq-yellow border-eq-yellow"
+              : "border-eq-yellow hover:text-eq-blue hover:bg-eq-yellow"
+          }`}
+        >
           Spectrum Visualizer
         </button>
 
@@ -423,6 +536,9 @@ const Controls = forwardRef(function Controls(
               );
             })}
           </defs>
+
+          {/* SPECTRUM VISUALIZER LINE */}
+          {renderSpectrumLine()}
 
           {/* Y-AXIS: Gain Labels (-25 to +25 dB) */}
           {[25, 20, 15, 10, 5, 0, -5, -10, -15, -20, -25].map((label) => {
