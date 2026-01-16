@@ -83,12 +83,23 @@ export default function Popup() {
 
     // Rehydrate Web Audio API with current UI state (fallback if no saved state)
     if (currentTabId && Object.keys(nodeGainValues).length > 0) {
+      // Recalculate Q values from baseQ and current gains before sending
+      const recalculatedQValues = {};
+      for (let i = 0; i < 13; i++) {
+        const isShelf = i === 2 || i === 12;
+        const baseQ = nodeBaseQValues[i] ?? (isShelf ? 0.75 : 0.3);
+        const gain = nodeGainValues[i] ?? 0;
+        recalculatedQValues[i] = isShelf
+          ? baseQ
+          : baseQ * (1.5 - Math.abs(gain) / 30);
+      }
+
       await sendMessage({
         type: "UPDATE_EQ_NODES",
         tabId: currentTabId,
         nodeGainValues,
         nodeFrequencyValues,
-        nodeQValues,
+        nodeQValues: recalculatedQValues,
       });
     }
   }
