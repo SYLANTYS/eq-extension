@@ -50,6 +50,7 @@ const Controls = forwardRef(function Controls(
     nodeBaseQValues,
     onEqNodesChange,
     spectrumData = [],
+    eqActive = true,
   },
   ref
 ) {
@@ -410,7 +411,7 @@ const Controls = forwardRef(function Controls(
    * Inverted Y-axis: magnitude 255 at top (y=0), magnitude 0 at bottom (y=500)
    */
   function renderSpectrumLine() {
-    if (!spectrumEnabled || !spectrumData || spectrumData.length === 0) {
+    if (!eqActive || !spectrumEnabled || !spectrumData || spectrumData.length === 0) {
       return null;
     }
 
@@ -466,8 +467,11 @@ const Controls = forwardRef(function Controls(
         {/* Spectrum visualizer toggle (rotated text) */}
         <button
           onClick={() => setSpectrumEnabled(!spectrumEnabled)}
+          disabled={!eqActive}
           className={`my-6 text-xs -rotate-90 cursor-pointer border px-2 rounded-b-sm rounded-t-xs transition-colors ${
-            spectrumEnabled
+            !eqActive
+              ? "opacity-50 cursor-not-allowed border-eq-yellow/50"
+              : spectrumEnabled
               ? "text-eq-blue bg-eq-yellow border-eq-yellow"
               : "border-eq-yellow hover:text-eq-blue hover:bg-eq-yellow"
           }`}

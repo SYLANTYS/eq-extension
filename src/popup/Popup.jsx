@@ -813,6 +813,7 @@ export default function Popup() {
             nodeBaseQValues={nodeBaseQValues}
             onEqNodesChange={handleEqNodesChange}
             spectrumData={spectrumData}
+            eqActive={eqActive}
           />
         )}
         {activeTab === "Guide" && <Guide />}
