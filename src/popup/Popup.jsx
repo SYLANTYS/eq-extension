@@ -79,13 +79,25 @@ export default function Popup() {
     for (let i = 0; i < frequencies.length; i++) {
       completeGainValues[i] = 0; // 0 dB default
       completeFreqValues[i] = frequencies[i];
-      completeQValues[i] = i === 2 || i === 12 ? 0.75 : 0.3; // Shelf Q vs peaking Q
+
+      // Default baseQ values: 0.75 for shelves, 0.3 for peaking
+      const defaultBaseQ = i === 2 || i === 12 ? 0.75 : 0.3;
+      // Convert baseQ to Q based on gain
+      completeQValues[i] = baseQToQ(i, defaultBaseQ, 0); // gain is 0 at this point
     }
 
     // Override with provided values
     Object.assign(completeGainValues, overrideGainValues);
     Object.assign(completeFreqValues, overrideFreqValues);
-    Object.assign(completeQValues, overrideQValues);
+
+    // For overrides, recalculate Q values from baseQ (if they came from presets)
+    // or use the override directly (if they're already Q values)
+    for (const indexStr in overrideQValues) {
+      const index = parseInt(indexStr, 10);
+      const gain = completeGainValues[index] ?? 0;
+      // Recalculate Q from the overridden Q value (treating it as a baseQ for presets)
+      completeQValues[index] = baseQToQ(index, overrideQValues[index], gain);
+    }
 
     return { completeGainValues, completeFreqValues, completeQValues };
   }
@@ -348,6 +360,18 @@ export default function Popup() {
         nodeFrequencyValues: newFrequencyValues,
         nodeQValues: newQValues,
       });
+    }
+  }
+
+  // Helper function to convert baseQ to Q
+  // Formula: Q = isShelf ? baseQ : baseQ * (1.5 - Math.abs(gaindB) / 30)
+  function baseQToQ(index, baseQ, gaindB) {
+    const isShelf = index === 2 || index === 12;
+    if (isShelf) {
+      return baseQ; // For shelves, Q and baseQ are the same
+    } else {
+      const multiplier = 1.5 - Math.abs(gaindB) / 30;
+      return baseQ * multiplier;
     }
   }
 
