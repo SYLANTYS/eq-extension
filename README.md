@@ -46,4 +46,5 @@ Load in Chrome:
 ## TODO
 
 - Spectrum visualizer
+- Themes: pull a theme list into popup.jsx
 - Pro Tab
