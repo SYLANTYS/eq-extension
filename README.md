@@ -45,6 +45,5 @@ Load in Chrome:
 
 ## TODO
 
-- Presets (save / delete) to local storage
 - Spectrum visualizer
 - Pro Tab
