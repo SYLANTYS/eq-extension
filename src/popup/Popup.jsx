@@ -18,6 +18,11 @@ export default function Popup() {
   const [nodeGainValues, setNodeGainValues] = useState({});
   const [nodeFrequencyValues, setNodeFrequencyValues] = useState({});
 
+  // Preset States
+  const [presetName, setPresetName] = useState("");
+  const [savedPresets, setSavedPresets] = useState([]);
+  const [selectedPreset, setSelectedPreset] = useState(null);
+
   // Sends a message to the background script and awaits a response.
   function sendMessage(msg) {
     return new Promise((resolve) => {
@@ -96,6 +101,12 @@ export default function Popup() {
     if (res?.ok) {
       setEqActive(true);
       setVolumeState(1);
+      // Reset all EQ states
+      setNodePositions({});
+      setNodeGainValues({});
+      setNodeFrequencyValues({});
+      setNodeQValues({});
+      setNodeBaseQValues({});
     }
   }
 
@@ -105,6 +116,12 @@ export default function Popup() {
     if (res?.ok) {
       setEqActive(false);
       setVolumeState(1);
+      // Reset all EQ states
+      setNodePositions({});
+      setNodeGainValues({});
+      setNodeFrequencyValues({});
+      setNodeQValues({});
+      setNodeBaseQValues({});
     }
   }
 
@@ -117,10 +134,162 @@ export default function Popup() {
     });
   }
 
-  // Resets all EQ filters to default values
-  function handleResetFilters() {
-    if (controlsRef.current) {
-      controlsRef.current.resetFilters();
+  // Load presets from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("eqPresets");
+    if (stored) {
+      try {
+        const presets = JSON.parse(stored);
+        setSavedPresets(presets);
+      } catch (e) {
+        console.warn("[Popup] Failed to load presets:", e);
+      }
+    }
+  }, []);
+
+  // Save preset to localStorage
+  async function handleSavePreset() {
+    if (!presetName.trim()) {
+      // alert("Please enter a preset name");
+      return;
+    }
+
+    const newPreset = {
+      name: presetName,
+      nodeGainValues,
+      nodeFrequencyValues,
+      nodeQValues,
+      timestamp: Date.now(),
+    };
+
+    // Add or update preset
+    const updatedPresets = savedPresets.filter((p) => p.name !== presetName);
+    updatedPresets.push(newPreset);
+
+    localStorage.setItem("eqPresets", JSON.stringify(updatedPresets));
+    setSavedPresets(updatedPresets);
+    setPresetName("");
+    // alert(`Preset "${presetName}" saved!`);
+  }
+
+  // Delete currently selected preset and reset all EQ filters
+  async function handleDeletePreset() {
+    if (!selectedPreset) {
+      // alert("Please select a preset to delete");
+      return;
+    }
+
+    const presetToDelete = selectedPreset;
+    const updatedPresets = savedPresets.filter(
+      (p) => p.name !== selectedPreset
+    );
+    localStorage.setItem("eqPresets", JSON.stringify(updatedPresets));
+    setSavedPresets(updatedPresets);
+    setSelectedPreset(null);
+    setPresetName("");
+
+    // Reset EQ filters using the same logic as reset button
+    await handleResetFilters();
+
+    // alert(`Preset "${presetToDelete}" deleted!`);
+  }
+
+  // Apply Bass Boost preset (index 2: 120 Hz, +5 dB gain, Q=0.75; all others default)
+  async function handleBassBoost() {
+    const frequencies = [
+      5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
+    ];
+    const bassBoostGainValues = {};
+    const bassBoostFreqValues = {};
+    const bassBoostQValues = {};
+
+    // Set all indexes to default, then override index 2 with boost
+    for (let i = 0; i < frequencies.length; i++) {
+      bassBoostGainValues[i] = i === 2 ? 5 : 0; // 5 dB gain for index 2, 0 dB for others
+      bassBoostFreqValues[i] = i === 2 ? 120 : frequencies[i]; // 120 Hz for index 2, default freq for others
+      bassBoostQValues[i] = i === 2 || i === 12 ? 0.75 : 0.3; // Shelf Q for index 2 and 12, peaking Q for others
+    }
+
+    // Initialize UI state
+    initializeEqState(
+      bassBoostGainValues,
+      bassBoostFreqValues,
+      bassBoostQValues
+    );
+
+    // Sync to Web Audio API
+    if (currentTabId) {
+      await sendMessage({
+        type: "UPDATE_EQ_NODES",
+        tabId: currentTabId,
+        nodeGainValues: bassBoostGainValues,
+        nodeFrequencyValues: bassBoostFreqValues,
+        nodeQValues: bassBoostQValues,
+      });
+    }
+  }
+
+  // Load preset and apply it
+  async function handleLoadPreset(presetName) {
+    const preset = savedPresets.find((p) => p.name === presetName);
+    if (!preset) return;
+
+    setSelectedPreset(presetName);
+    setPresetName(presetName);
+
+    // Initialize UI state from preset
+    initializeEqState(
+      preset.nodeGainValues,
+      preset.nodeFrequencyValues,
+      preset.nodeQValues
+    );
+
+    // Sync to Web Audio API
+    if (currentTabId) {
+      await sendMessage({
+        type: "UPDATE_EQ_NODES",
+        tabId: currentTabId,
+        nodeGainValues: preset.nodeGainValues,
+        nodeFrequencyValues: preset.nodeFrequencyValues,
+        nodeQValues: preset.nodeQValues,
+      });
+    }
+  }
+
+  // Resets all EQ filters to default values and clears preset selection
+  async function handleResetFilters() {
+    // Reset local state
+    setNodePositions({});
+    setNodeGainValues({});
+    setNodeFrequencyValues({});
+    setNodeQValues({});
+    setNodeBaseQValues({});
+    setSelectedPreset(null);
+    setPresetName("");
+
+    // Reset Web Audio API filters to defaults
+    if (currentTabId) {
+      const frequencies = [
+        5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
+      ];
+      const defaultGainValues = {};
+      const defaultFreqValues = {};
+      const defaultQValues = {};
+
+      // Set all filters to their default values
+      for (let i = 0; i < frequencies.length; i++) {
+        defaultGainValues[i] = 0; // 0 dB (no boost/cut)
+        defaultFreqValues[i] = frequencies[i];
+        defaultQValues[i] = i === 2 || i === 12 ? 0.75 : 0.3; // Shelf Q vs peaking Q
+      }
+
+      await sendMessage({
+        type: "UPDATE_EQ_NODES",
+        tabId: currentTabId,
+        nodeGainValues: defaultGainValues,
+        nodeFrequencyValues: defaultFreqValues,
+        nodeQValues: defaultQValues,
+      });
     }
   }
 
@@ -162,6 +331,36 @@ export default function Popup() {
       const divisor = 1.5 - Math.abs(gaindB) / 30;
       return divisor !== 0 ? q / divisor : 0.3; // Fallback to default
     }
+  }
+
+  // Initialize EQ state from gain/frequency/Q values
+  // Calculates positions, baseQ values, and updates all state
+  function initializeEqState(gainValues, freqValues, qValues) {
+    const frequencies = [
+      5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
+    ];
+
+    // Calculate node positions from frequency/gain values
+    const positions = calculateNodePositions(
+      freqValues,
+      gainValues,
+      frequencies
+    );
+
+    // Convert Q values back to baseQ
+    const baseQValues = {};
+    for (const indexStr in qValues) {
+      const index = parseInt(indexStr, 10);
+      const baseQ = qToBaseQ(index, qValues[index], gainValues[index] ?? 0);
+      baseQValues[index] = baseQ;
+    }
+
+    // Update all state
+    setNodePositions(positions);
+    setNodeGainValues(gainValues);
+    setNodeFrequencyValues(freqValues);
+    setNodeQValues(qValues);
+    setNodeBaseQValues(baseQValues);
   }
 
   // Convert node positions from Web Audio API values to UI coordinates
@@ -266,34 +465,8 @@ export default function Popup() {
           const freqValues = eqNodeStatus.nodeFrequencyValues || {};
           const qValues = eqNodeStatus.nodeQValues || {};
 
-          // Calculate nodePositions from frequency/gain values
-          const frequencies = [
-            5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
-          ];
-          const positions = calculateNodePositions(
-            freqValues,
-            gainValues,
-            frequencies
-          );
-
-          // Convert Q values back to baseQ
-          const baseQValues = {};
-          for (const indexStr in qValues) {
-            const index = parseInt(indexStr, 10);
-            const baseQ = qToBaseQ(
-              index,
-              qValues[index],
-              gainValues[index] ?? 0
-            );
-            baseQValues[index] = baseQ;
-          }
-
-          // Update states
-          setNodePositions(positions);
-          setNodeGainValues(gainValues);
-          setNodeFrequencyValues(freqValues);
-          setNodeQValues(qValues);
-          setNodeBaseQValues(baseQValues);
+          // Initialize EQ state from Web Audio API values
+          initializeEqState(gainValues, freqValues, qValues);
         }
       } catch (e) {
         console.warn("[Popup] Failed to fetch EQ state:", e);
@@ -413,18 +586,27 @@ export default function Popup() {
 
         {/* ================= PRESET BUTTONS ================= */}
         <div className="px-3 py-1 text-sm">
-          {/* Top row: presets + actions (right aligned) */}
+          {/* Top row: preset input + actions (right aligned) */}
           <div className="flex justify-end items-center gap-2">
             <input
               placeholder="Preset Name"
-              className="border border-eq-yellow rounded-xs text-sm w-20 outline-none"
+              value={presetName}
+              onChange={(e) => setPresetName(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSavePreset()}
+              className="border border-eq-yellow rounded-xs text-sm w-20 outline-none bg-eq-blue text-eq-yellow placeholder-eq-yellow/50"
             />
 
-            <button className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
+            <button
+              onClick={handleSavePreset}
+              className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+            >
               + Save Preset
             </button>
 
-            <button className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
+            <button
+              onClick={handleDeletePreset}
+              className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+            >
               - Delete Preset
             </button>
 
@@ -436,14 +618,23 @@ export default function Popup() {
             </button>
           </div>
 
-          {/* Bottom row: quick presets (right aligned) */}
+          {/* Saved Presets + Quick Presets Row (right aligned) */}
           <div className="flex justify-end gap-2 mt-3 flex-wrap">
-            <button className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
-              Bass Boost
-            </button>
+            {savedPresets.map((preset) => (
+              <button
+                key={preset.name}
+                onClick={() => handleLoadPreset(preset.name)}
+                className={`px-1.5 cursor-pointer border rounded-xs border-eq-yellow hover:text-eq-blue hover:bg-eq-yellow`}
+              >
+                {preset.name}
+              </button>
+            ))}
 
-            <button className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow">
-              YouTube
+            <button
+              onClick={handleBassBoost}
+              className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+            >
+              Bass Boost
             </button>
           </div>
         </div>

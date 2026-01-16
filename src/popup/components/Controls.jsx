@@ -211,16 +211,25 @@ const Controls = forwardRef(function Controls(
 
       // console.log(`[Node ${draggingNode}] Base Q: ${baseQ.toFixed(2)}`);
 
-      // Update parent state via callback
+      // Calculate the new Q value from baseQ and current gain
+      const isShelf = draggingNode === 2 || draggingNode === 12;
+      const gaindB = nodeGainValues[draggingNode] ?? 0;
+      const Q = isShelf ? baseQ : baseQ * (1.5 - Math.abs(gaindB) / 30);
+
+      // Update parent state via callback with both baseQ and new Q value
       const newBaseQValues = {
         ...nodeBaseQValues,
         [draggingNode]: baseQ,
+      };
+      const newQValues = {
+        ...nodeQValues,
+        [draggingNode]: Q,
       };
       onEqNodesChange(
         nodePositions,
         nodeGainValues,
         nodeFrequencyValues,
-        nodeQValues,
+        newQValues,
         newBaseQValues
       );
       return;
