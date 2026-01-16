@@ -37,6 +37,37 @@ export default function Popup() {
     });
   }
 
+  // Save current EQ node state to localStorage
+  // Used for persistence after offscreen restarts
+  function saveEqStateToLocalStorage(positions, gains, freqs, qs, baseQs) {
+    const eqState = {
+      nodePositions: positions,
+      nodeGainValues: gains,
+      nodeFrequencyValues: freqs,
+      nodeQValues: qs,
+      nodeBaseQValues: baseQs,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem("eqCurrentState", JSON.stringify(eqState));
+    console.log("[Popup] EQ state saved to localStorage");
+  }
+
+  // Load EQ node state from localStorage
+  // Returns null if no saved state exists
+  function loadEqStateFromLocalStorage() {
+    try {
+      const stored = localStorage.getItem("eqCurrentState");
+      if (stored) {
+        const eqState = JSON.parse(stored);
+        console.log("[Popup] EQ state loaded from localStorage");
+        return eqState;
+      }
+    } catch (e) {
+      console.warn("[Popup] Failed to load EQ state from localStorage:", e);
+    }
+    return null;
+  }
+
   // Ensure background and offscreen are ready by pinging BG and reinitializing missing audio.
   // Call this before critical operations to guarantee service worker and offscreen are alive.
   async function ensureBackendReady() {
@@ -50,7 +81,7 @@ export default function Popup() {
     // Reinitialize any missing audio graphs in offscreen
     await sendMessage({ type: "REINIT_MISSING_AUDIO" });
 
-    // Rehydrate Web Audio API with current UI state
+    // Rehydrate Web Audio API with current UI state (fallback if no saved state)
     if (currentTabId && Object.keys(nodeGainValues).length > 0) {
       await sendMessage({
         type: "UPDATE_EQ_NODES",
@@ -260,6 +291,20 @@ export default function Popup() {
     // Initialize UI state
     initializeEqState(completeGainValues, completeFreqValues, completeQValues);
 
+    // Save to localStorage for persistence after offscreen restarts
+    const positions = calculateNodePositions(
+      completeFreqValues,
+      completeGainValues,
+      [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480]
+    );
+    saveEqStateToLocalStorage(
+      positions,
+      completeGainValues,
+      completeFreqValues,
+      completeQValues,
+      nodeBaseQValues
+    );
+
     // Sync to Web Audio API
     if (currentTabId) {
       await sendMessage({
@@ -290,6 +335,20 @@ export default function Popup() {
     // Initialize UI state with complete values
     initializeEqState(completeGainValues, completeFreqValues, completeQValues);
 
+    // Save to localStorage for persistence after offscreen restarts
+    const positions = calculateNodePositions(
+      completeFreqValues,
+      completeGainValues,
+      [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480]
+    );
+    saveEqStateToLocalStorage(
+      positions,
+      completeGainValues,
+      completeFreqValues,
+      completeQValues,
+      nodeBaseQValues
+    );
+
     // Sync to Web Audio API
     if (currentTabId) {
       await sendMessage({
@@ -312,6 +371,9 @@ export default function Popup() {
     setNodeBaseQValues({});
     setSelectedPreset(null);
     setPresetName("");
+
+    // Clear saved EQ state from localStorage
+    localStorage.removeItem("eqCurrentState");
 
     // Reset Web Audio API filters to defaults
     if (currentTabId) {
@@ -353,6 +415,15 @@ export default function Popup() {
     setNodeFrequencyValues(newFrequencyValues);
     setNodeQValues(newQValues);
     setNodeBaseQValues(newBaseQValues);
+
+    // Save to localStorage for persistence after offscreen restarts
+    saveEqStateToLocalStorage(
+      newPositions,
+      newGainValues,
+      newFrequencyValues,
+      newQValues,
+      newBaseQValues
+    );
 
     // Sync to Web Audio API via background
     if (currentTabId) {
@@ -495,8 +566,48 @@ export default function Popup() {
 
       if (cancelled) return;
 
-      // Ensure backend is ready
+      // Load saved EQ state from localStorage on boot (for UI display)
+      const savedState = loadEqStateFromLocalStorage();
+      if (savedState) {
+        const {
+          nodePositions: savedPositions,
+          nodeGainValues: savedGains,
+          nodeFrequencyValues: savedFreqs,
+          nodeQValues: savedQs,
+          nodeBaseQValues: savedBaseQs,
+        } = savedState;
+        setNodePositions(savedPositions);
+        setNodeGainValues(savedGains);
+        setNodeFrequencyValues(savedFreqs);
+        setNodeQValues(savedQs);
+        setNodeBaseQValues(savedBaseQs);
+        console.log("[Popup] EQ state loaded from localStorage on boot");
+      }
+
+      if (cancelled) return;
+
+      // Ensure backend is ready FIRST before syncing saved state
       await ensureBackendReady();
+
+      if (cancelled) return;
+
+      // NOW sync saved state to Web Audio API after backend is ready
+      // This must happen AFTER ensureBackendReady and AFTER START_EQ
+      if (savedState && Object.keys(savedState.nodeGainValues).length > 0) {
+        console.log(
+          "[Popup] Attempting to sync saved state to Web Audio API..."
+        );
+        await sendMessage({
+          type: "UPDATE_EQ_NODES",
+          tabId: tab.id,
+          nodeGainValues: savedState.nodeGainValues,
+          nodeFrequencyValues: savedState.nodeFrequencyValues,
+          nodeQValues: savedState.nodeQValues,
+        });
+        console.log(
+          "[Popup] Saved EQ state synced to Web Audio API after backend ready"
+        );
+      }
 
       if (cancelled) return;
 
@@ -511,7 +622,32 @@ export default function Popup() {
 
       if (cancelled) return;
 
-      // Fetch current EQ state from Web Audio API
+      // Check if we need to START_EQ
+      if (!status?.active) {
+        // Auto-start EQ for this tab if not already active
+        const res = await sendMessage({ type: "START_EQ", tabId: tab.id });
+        if (res?.ok) setEqActive(true);
+
+        if (cancelled) return;
+
+        // After START_EQ, sync saved state again to ensure it takes effect
+        if (savedState && Object.keys(savedState.nodeGainValues).length > 0) {
+          console.log(
+            "[Popup] Re-syncing saved state after START_EQ to ensure it takes effect..."
+          );
+          await new Promise((r) => setTimeout(r, 100)); // Small delay to let START_EQ complete
+          await sendMessage({
+            type: "UPDATE_EQ_NODES",
+            tabId: tab.id,
+            nodeGainValues: savedState.nodeGainValues,
+            nodeFrequencyValues: savedState.nodeFrequencyValues,
+            nodeQValues: savedState.nodeQValues,
+          });
+          console.log("[Popup] Saved EQ state re-synced after START_EQ");
+        }
+      }
+
+      // Fetch current EQ state from Web Audio API to verify it was applied
       try {
         const eqNodeStatus = await sendMessage({
           type: "GET_EQ_NODES",
@@ -523,20 +659,17 @@ export default function Popup() {
           const freqValues = eqNodeStatus.nodeFrequencyValues || {};
           const qValues = eqNodeStatus.nodeQValues || {};
 
-          // Initialize EQ state from Web Audio API values
-          initializeEqState(gainValues, freqValues, qValues);
+          // If Web Audio API has values, update state from it (source of truth)
+          if (Object.keys(gainValues).length > 0) {
+            initializeEqState(gainValues, freqValues, qValues);
+            console.log(
+              "[Popup] Web Audio API has EQ state, using it as source of truth"
+            );
+          }
         }
       } catch (e) {
         console.warn("[Popup] Failed to fetch EQ state:", e);
       }
-
-      if (status?.active) {
-        return; // already running, don't auto-start again
-      }
-
-      // Auto-start EQ for this tab if not already active
-      const res = await sendMessage({ type: "START_EQ", tabId: tab.id });
-      if (res?.ok) setEqActive(true);
     }
 
     boot();
