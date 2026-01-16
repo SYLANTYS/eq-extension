@@ -79,6 +79,24 @@ const Controls = forwardRef(function Controls(
           resolve(err ? { ok: false } : res ?? { ok: true });
         });
       });
+
+      // Rehydrate Web Audio API with current UI state
+      if (Object.keys(nodeGainValues).length > 0) {
+        await new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            {
+              type: "UPDATE_EQ_NODES",
+              nodeGainValues,
+              nodeFrequencyValues,
+              nodeQValues,
+            },
+            (res) => {
+              const err = chrome.runtime.lastError;
+              resolve(err ? { ok: false } : res ?? { ok: true });
+            }
+          );
+        });
+      }
     } catch (e) {
       console.warn("[Controls] Error ensuring backend:", e);
     }

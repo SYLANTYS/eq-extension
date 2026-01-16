@@ -46,6 +46,17 @@ export default function Popup() {
 
     // Reinitialize any missing audio graphs in offscreen
     await sendMessage({ type: "REINIT_MISSING_AUDIO" });
+
+    // Rehydrate Web Audio API with current UI state
+    if (currentTabId && Object.keys(nodeGainValues).length > 0) {
+      await sendMessage({
+        type: "UPDATE_EQ_NODES",
+        tabId: currentTabId,
+        nodeGainValues,
+        nodeFrequencyValues,
+        nodeQValues,
+      });
+    }
   }
 
   // Throttle tracking for ensuring backend is ready (1 second cooldown)
