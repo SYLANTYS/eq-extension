@@ -111,40 +111,42 @@ export default function Popup() {
   function buildCompleteEqValues(
     overrideGainValues = {},
     overrideFreqValues = {},
-    overrideQValues = {}
+    overrideBaseQValues = {}
   ) {
     const frequencies = [
       5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
     ];
     const completeGainValues = {};
     const completeFreqValues = {};
+    const completeBaseQValues = {};
     const completeQValues = {};
 
     // Set all indexes to defaults first
     for (let i = 0; i < frequencies.length; i++) {
       completeGainValues[i] = 0; // 0 dB default
       completeFreqValues[i] = frequencies[i];
-
       // Default baseQ values: 0.75 for shelves, 0.3 for peaking
-      const defaultBaseQ = i === 2 || i === 12 ? 0.75 : 0.3;
-      // Convert baseQ to Q based on gain
-      completeQValues[i] = baseQToQ(i, defaultBaseQ, 0); // gain is 0 at this point
+      completeBaseQValues[i] = i === 2 || i === 12 ? 0.75 : 0.3;
     }
 
     // Override with provided values
     Object.assign(completeGainValues, overrideGainValues);
     Object.assign(completeFreqValues, overrideFreqValues);
+    Object.assign(completeBaseQValues, overrideBaseQValues);
 
-    // For overrides, recalculate Q values from baseQ (if they came from presets)
-    // or use the override directly (if they're already Q values)
-    for (const indexStr in overrideQValues) {
-      const index = parseInt(indexStr, 10);
-      const gain = completeGainValues[index] ?? 0;
-      // Recalculate Q from the overridden Q value (treating it as a baseQ for presets)
-      completeQValues[index] = baseQToQ(index, overrideQValues[index], gain);
+    // Calculate Q values from baseQ and gain (no unnecessary conversions)
+    for (let i = 0; i < frequencies.length; i++) {
+      const baseQ = completeBaseQValues[i];
+      const gain = completeGainValues[i];
+      completeQValues[i] = baseQToQ(i, baseQ, gain);
     }
 
-    return { completeGainValues, completeFreqValues, completeQValues };
+    return {
+      completeGainValues,
+      completeFreqValues,
+      completeQValues,
+      completeBaseQValues,
+    };
   }
 
   // Throttled ensure backend ready with 1 second cooldown
@@ -254,7 +256,7 @@ export default function Popup() {
       name: presetName,
       nodeGainValues,
       nodeFrequencyValues,
-      nodeQValues,
+      nodeBaseQValues,
       timestamp: Date.now(),
     };
 
@@ -290,14 +292,18 @@ export default function Popup() {
     // alert(`Preset "${presetToDelete}" deleted!`);
   }
 
-  // Apply Bass Boost preset (index 2: 120 Hz, +5 dB gain, Q=0.75; all others default)
+  // Apply Bass Boost preset (index 2: 120 Hz, +5 dB gain, baseQ=0.75; all others default)
   async function handleBassBoost() {
-    const { completeGainValues, completeFreqValues, completeQValues } =
-      buildCompleteEqValues(
-        { 2: 5 }, // 5 dB gain for index 2
-        { 2: 120 }, // 120 Hz for index 2
-        { 2: 0.75 } // Q for index 2
-      );
+    const {
+      completeGainValues,
+      completeFreqValues,
+      completeQValues,
+      completeBaseQValues,
+    } = buildCompleteEqValues(
+      { 2: 5 }, // 5 dB gain for index 2
+      { 2: 120 }, // 120 Hz for index 2
+      { 2: 0.75 } // baseQ for index 2
+    );
 
     // Initialize UI state
     initializeEqState(completeGainValues, completeFreqValues, completeQValues);
@@ -313,7 +319,7 @@ export default function Popup() {
       completeGainValues,
       completeFreqValues,
       completeQValues,
-      nodeBaseQValues
+      completeBaseQValues
     );
 
     // Sync to Web Audio API
@@ -336,12 +342,16 @@ export default function Popup() {
     setSelectedPreset(presetName);
     setPresetName(presetName);
 
-    const { completeGainValues, completeFreqValues, completeQValues } =
-      buildCompleteEqValues(
-        preset.nodeGainValues,
-        preset.nodeFrequencyValues,
-        preset.nodeQValues
-      );
+    const {
+      completeGainValues,
+      completeFreqValues,
+      completeQValues,
+      completeBaseQValues,
+    } = buildCompleteEqValues(
+      preset.nodeGainValues,
+      preset.nodeFrequencyValues,
+      preset.nodeBaseQValues
+    );
 
     // Initialize UI state with complete values
     initializeEqState(completeGainValues, completeFreqValues, completeQValues);
@@ -357,7 +367,7 @@ export default function Popup() {
       completeGainValues,
       completeFreqValues,
       completeQValues,
-      nodeBaseQValues
+      completeBaseQValues
     );
 
     // Sync to Web Audio API

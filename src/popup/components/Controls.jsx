@@ -411,7 +411,12 @@ const Controls = forwardRef(function Controls(
    * Inverted Y-axis: magnitude 255 at top (y=0), magnitude 0 at bottom (y=500)
    */
   function renderSpectrumLine() {
-    if (!eqActive || !spectrumEnabled || !spectrumData || spectrumData.length === 0) {
+    if (
+      !eqActive ||
+      !spectrumEnabled ||
+      !spectrumData ||
+      spectrumData.length === 0
+    ) {
       return null;
     }
 
