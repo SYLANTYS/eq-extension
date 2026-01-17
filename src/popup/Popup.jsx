@@ -174,7 +174,7 @@ export default function Popup() {
   function buildCompleteEqValues(
     overrideGainValues = {},
     overrideFreqValues = {},
-    overrideBaseQValues = {}
+    overrideBaseQValues = {},
   ) {
     const frequencies = [
       5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
@@ -252,7 +252,7 @@ export default function Popup() {
     window.addEventListener(
       "mouseup",
       () => window.removeEventListener("mousemove", move),
-      { once: true }
+      { once: true },
     );
   }
 
@@ -284,6 +284,18 @@ export default function Popup() {
       setNodeQValues({});
       setNodeBaseQValues({});
     }
+  }
+
+  // Stops EQ and resets all filters
+  async function handleStopEqAndReset() {
+    await stopEq();
+    await handleResetFilters();
+  }
+
+  // Starts EQ and resets all filters
+  async function handleStartEqAndReset() {
+    await startEq();
+    await handleResetFilters();
   }
 
   // Sets the master volume in the offscreen audio context.
@@ -342,7 +354,7 @@ export default function Popup() {
 
     const presetToDelete = selectedPreset;
     const updatedPresets = savedPresets.filter(
-      (p) => p.name !== selectedPreset
+      (p) => p.name !== selectedPreset,
     );
     localStorage.setItem("eqPresets", JSON.stringify(updatedPresets));
     setSavedPresets(updatedPresets);
@@ -365,7 +377,7 @@ export default function Popup() {
     } = buildCompleteEqValues(
       { 2: 5 }, // 5 dB gain for index 2
       { 2: 120 }, // 120 Hz for index 2
-      { 2: 0.75 } // baseQ for index 2
+      { 2: 0.75 }, // baseQ for index 2
     );
 
     // Initialize UI state
@@ -375,14 +387,14 @@ export default function Popup() {
     const positions = calculateNodePositions(
       completeFreqValues,
       completeGainValues,
-      [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480]
+      [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480],
     );
     saveEqStateToLocalStorage(
       positions,
       completeGainValues,
       completeFreqValues,
       completeQValues,
-      completeBaseQValues
+      completeBaseQValues,
     );
 
     // Sync to Web Audio API
@@ -413,7 +425,7 @@ export default function Popup() {
     } = buildCompleteEqValues(
       preset.nodeGainValues,
       preset.nodeFrequencyValues,
-      preset.nodeBaseQValues
+      preset.nodeBaseQValues,
     );
 
     // Initialize UI state with complete values
@@ -423,14 +435,14 @@ export default function Popup() {
     const positions = calculateNodePositions(
       completeFreqValues,
       completeGainValues,
-      [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480]
+      [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480],
     );
     saveEqStateToLocalStorage(
       positions,
       completeGainValues,
       completeFreqValues,
       completeQValues,
-      completeBaseQValues
+      completeBaseQValues,
     );
 
     // Sync to Web Audio API
@@ -491,7 +503,7 @@ export default function Popup() {
     newGainValues,
     newFrequencyValues,
     newQValues,
-    newBaseQValues
+    newBaseQValues,
   ) {
     // Update local state
     setNodePositions(newPositions);
@@ -506,7 +518,7 @@ export default function Popup() {
       newGainValues,
       newFrequencyValues,
       newQValues,
-      newBaseQValues
+      newBaseQValues,
     );
 
     // Sync to Web Audio API via background
@@ -557,7 +569,7 @@ export default function Popup() {
     const positions = calculateNodePositions(
       freqValues,
       gainValues,
-      frequencies
+      frequencies,
     );
 
     // Convert Q values back to baseQ
@@ -581,7 +593,7 @@ export default function Popup() {
   function calculateNodePositions(
     nodeFrequencyValues,
     nodeGainValues,
-    frequencies
+    frequencies,
   ) {
     const positions = {};
     const SVG_HEIGHT = 500;
@@ -700,7 +712,7 @@ export default function Popup() {
             };
             initializeEqState(gainValues, freqValues, qValues);
             console.log(
-              "[Popup] Web Audio API has EQ state, using it as source of truth"
+              "[Popup] Web Audio API has EQ state, using it as source of truth",
             );
           }
         }
@@ -731,7 +743,7 @@ export default function Popup() {
           // Sync localStorage state to Web Audio API
           if (Object.keys(savedGains).length > 0) {
             console.log(
-              "[Popup] Syncing localStorage state to Web Audio API..."
+              "[Popup] Syncing localStorage state to Web Audio API...",
             );
             await sendMessage({
               type: "UPDATE_EQ_NODES",
@@ -1044,7 +1056,7 @@ export default function Popup() {
         {/* Centered primary action */}
         <div className="flex justify-center mb-5">
           <button
-            onClick={eqActive ? stopEq : startEq}
+            onClick={eqActive ? handleStopEqAndReset : handleStartEqAndReset}
             style={{
               borderColor: COLORS.TEXT,
               ...(hoveredButton === "main"
@@ -1066,13 +1078,7 @@ export default function Popup() {
           </div>
 
           <div>
-            <a
-              href="chrome-extension://efnhmajdoaaiohaagokccdjbaibhofno/popup/index.html"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <u>Open in Full Window</u>
-            </a>
+            <i>Automatically stops EQing when audio stops playing!</i>
           </div>
         </div>
       </footer>
