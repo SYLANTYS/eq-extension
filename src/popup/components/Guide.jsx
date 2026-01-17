@@ -1,7 +1,14 @@
-export default function Guide() {
+export default function Guide({ themes = [], themeIndex = 0 }) {
+  const COLORS = themes[themeIndex] || {};
   return (
-    <div className="w-[730px] h-[365px] ml-13 flex items-center justify-center border border-eq-yellow/50">
-      <div className="text-base text-start overflow-y-auto h-full scrollbar-none">
+    <div
+      className="w-[730px] h-[365px] ml-13 flex items-center justify-center border"
+      style={{ borderColor: COLORS.TEXT }}
+    >
+      <div
+        className="text-base text-start overflow-y-auto h-full scrollbar-none"
+        style={{ color: COLORS.TEXT }}
+      >
         <p className="mb-3">
           When you click the Ears icon, the current tab is added to Ears. To add
           another tab, open that tab, then click the Ears icon again.

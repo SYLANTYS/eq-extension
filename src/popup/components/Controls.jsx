@@ -49,6 +49,7 @@ const Controls = forwardRef(function Controls(
   const [draggingNode, setDraggingNode] = useState(null);
   const [isShiftDrag, setIsShiftDrag] = useState(false);
   const [spectrumEnabled, setSpectrumEnabledState] = useState(false);
+  const [hoveredSpectrumBtn, setHoveredSpectrumBtn] = useState(false);
   const svgRef = useRef(null);
   const shiftDragStartYRef = useRef(null); // Track initial Y position for shift drag
 
@@ -468,13 +469,22 @@ const Controls = forwardRef(function Controls(
         <button
           onClick={() => setSpectrumEnabled(!spectrumEnabled)}
           disabled={!eqActive}
-          className={`my-6 text-xs -rotate-90 cursor-pointer border px-2 rounded-b-sm rounded-t-xs ${
-            !eqActive
-              ? "opacity-50 cursor-not-allowed border-eq-yellow/50"
-              : spectrumEnabled
-              ? "text-eq-blue bg-eq-yellow border-eq-yellow"
-              : "border-eq-yellow hover:text-eq-blue hover:bg-eq-yellow"
-          }`}
+          style={{
+            borderColor: !eqActive ? `${COLORS.TEXT}80` : COLORS.TEXT,
+            backgroundColor:
+              spectrumEnabled || hoveredSpectrumBtn
+                ? COLORS.TEXT
+                : "transparent",
+            color:
+              spectrumEnabled || hoveredSpectrumBtn
+                ? COLORS.BACKGROUND
+                : COLORS.TEXT,
+            opacity: !eqActive ? 0.5 : 1,
+            cursor: !eqActive ? "not-allowed" : "pointer",
+          }}
+          className="my-6 text-xs -rotate-90 cursor-pointer border px-2 rounded-b-sm rounded-t-xs"
+          onMouseEnter={() => !eqActive || setHoveredSpectrumBtn(true)}
+          onMouseLeave={() => setHoveredSpectrumBtn(false)}
         >
           Spectrum Visualizer
         </button>
@@ -483,12 +493,18 @@ const Controls = forwardRef(function Controls(
         <div className="flex flex-col items-center">
           <div className="text-xs mb-2 select-none">volume</div>
           <div
-            className="h-60 w-px bg-eq-yellow/50 rounded relative"
+            className="h-60 w-px rounded relative"
+            style={{
+              backgroundColor: `${COLORS.TEXT}80`,
+            }}
             onMouseDown={onVolumeStart}
           >
             <div
-              className="absolute w-9 h-1.5 bg-eq-yellow -left-4.25 cursor-pointer"
-              style={{ bottom: `${getSliderPosition(volume)}%` }}
+              className="absolute w-9 h-1.5 -left-4.25 cursor-pointer"
+              style={{
+                backgroundColor: COLORS.TEXT,
+                bottom: `${getSliderPosition(volume)}%`,
+              }}
             />
           </div>
         </div>
@@ -498,7 +514,10 @@ const Controls = forwardRef(function Controls(
       <main className="w-[730px] h-[365px] relative">
         <svg
           ref={svgRef}
-          className="absolute inset-0 w-full h-full border border-eq-yellow/50"
+          className="absolute inset-0 w-full h-full border"
+          style={{
+            borderColor: `${COLORS.TEXT}80`,
+          }}
           viewBox="0 0 1000 500"
           preserveAspectRatio="none"
         >

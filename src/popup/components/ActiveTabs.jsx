@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 
-export default function ActiveTabs() {
+export default function ActiveTabs({ themes = [], themeIndex = 0 }) {
+  const COLORS = themes[themeIndex] || {};
   const [activeTabs, setActiveTabs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hoveredTabId, setHoveredTabId] = useState(null);
 
   // Sends a message to the background script and awaits a response.
   function sendMessage(msg) {
@@ -53,12 +55,23 @@ export default function ActiveTabs() {
     <div className="w-[730px] h-[365px] ml-13 flex items-center justify-center">
       <div className="w-100 text-sm overflow-y-auto max-h-[365px] scrollbar-none">
         {activeTabs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-eq-yellow/70">
+          <div
+            className="flex flex-col items-center justify-center h-full gap-2"
+            style={{ color: `${COLORS.TEXT}b3` }}
+          >
             <div>No active tabs</div>
             <button
               onClick={loadActiveTabs}
               disabled={loading}
-              className="px-1.5 cursor-pointer border border-eq-yellow/70 rounded-xs hover:bg-eq-yellow hover:text-eq-blue hover:border-eq-yellow disabled:opacity-50"
+              style={{
+                borderColor: `${COLORS.TEXT}b3`,
+                ...(hoveredTabId === "refresh"
+                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                  : { color: `${COLORS.TEXT}b3` }),
+              }}
+              className="px-1.5 cursor-pointer border rounded-xs disabled:opacity-50"
+              onMouseEnter={() => setHoveredTabId("refresh")}
+              onMouseLeave={() => setHoveredTabId(null)}
             >
               {loading ? "Refreshing..." : "Refresh"}
             </button>
@@ -68,7 +81,18 @@ export default function ActiveTabs() {
             <div key={tab.id} className="flex gap-2 mb-1 items-center">
               <button
                 onClick={() => handleStopEq(tab.id)}
-                className="flex items-center gap-1 px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow whitespace-nowrap"
+                style={{
+                  borderColor: COLORS.TEXT,
+                  ...(hoveredTabId === tab.id
+                    ? {
+                        backgroundColor: COLORS.TEXT,
+                        color: COLORS.BACKGROUND,
+                      }
+                    : { color: COLORS.TEXT }),
+                }}
+                className="flex items-center gap-1 px-1.5 cursor-pointer border rounded-xs whitespace-nowrap"
+                onMouseEnter={() => setHoveredTabId(tab.id)}
+                onMouseLeave={() => setHoveredTabId(null)}
               >
                 <p>Stop EQing</p>
                 {tab.favIconUrl && (
@@ -77,7 +101,9 @@ export default function ActiveTabs() {
                 {!tab.favIconUrl && <div className="w-4 h-4"></div>}
               </button>
 
-              <p className="flex-1 truncate">{tab.title}</p>
+              <p className="flex-1 truncate" style={{ color: COLORS.TEXT }}>
+                {tab.title}
+              </p>
             </div>
           ))
         )}

@@ -21,6 +21,8 @@ export default function Popup() {
   const [currentTabId, setCurrentTabId] = useState(null);
   const [activeTab, setActiveTab] = useState("Controls");
   const [themeIndex, setThemeIndex] = useState(0);
+  const [hoveredTab, setHoveredTab] = useState(null);
+  const [hoveredButton, setHoveredButton] = useState(null);
   const controlsRef = useRef(null);
 
   // Get current theme colors
@@ -781,9 +783,11 @@ export default function Popup() {
                 throttledEnsureBackend();
                 setActiveTab("Controls");
               }}
+              onMouseEnter={() => setHoveredTab("Controls")}
+              onMouseLeave={() => setHoveredTab(null)}
               style={{
                 borderColor: COLORS.TEXT,
-                ...(activeTab === "Controls"
+                ...(activeTab === "Controls" || hoveredTab === "Controls"
                   ? { color: COLORS.BACKGROUND, backgroundColor: COLORS.TEXT }
                   : {}),
               }}
@@ -796,9 +800,11 @@ export default function Popup() {
                 throttledEnsureBackend();
                 setActiveTab("Guide");
               }}
+              onMouseEnter={() => setHoveredTab("Guide")}
+              onMouseLeave={() => setHoveredTab(null)}
               style={{
                 borderColor: COLORS.TEXT,
-                ...(activeTab === "Guide"
+                ...(activeTab === "Guide" || hoveredTab === "Guide"
                   ? { color: COLORS.BACKGROUND, backgroundColor: COLORS.TEXT }
                   : {}),
               }}
@@ -811,9 +817,11 @@ export default function Popup() {
                 throttledEnsureBackend();
                 setActiveTab("ActiveTabs");
               }}
+              onMouseEnter={() => setHoveredTab("ActiveTabs")}
+              onMouseLeave={() => setHoveredTab(null)}
               style={{
                 borderColor: COLORS.TEXT,
-                ...(activeTab === "ActiveTabs"
+                ...(activeTab === "ActiveTabs" || hoveredTab === "ActiveTabs"
                   ? { color: COLORS.BACKGROUND, backgroundColor: COLORS.TEXT }
                   : {}),
               }}
@@ -826,9 +834,11 @@ export default function Popup() {
                 throttledEnsureBackend();
                 setActiveTab("Pro");
               }}
+              onMouseEnter={() => setHoveredTab("Pro")}
+              onMouseLeave={() => setHoveredTab(null)}
               style={{
                 borderColor: COLORS.TEXT,
-                ...(activeTab === "Pro"
+                ...(activeTab === "Pro" || hoveredTab === "Pro"
                   ? { color: COLORS.BACKGROUND, backgroundColor: COLORS.TEXT }
                   : {}),
               }}
@@ -857,9 +867,13 @@ export default function Popup() {
             themeIndex={themeIndex}
           />
         )}
-        {activeTab === "Guide" && <Guide />}
-        {activeTab === "ActiveTabs" && <ActiveTabs />}
-        {activeTab === "Pro" && <Pro />}
+        {activeTab === "Guide" && (
+          <Guide themes={THEMES} themeIndex={themeIndex} />
+        )}
+        {activeTab === "ActiveTabs" && (
+          <ActiveTabs themes={THEMES} themeIndex={themeIndex} />
+        )}
+        {activeTab === "Pro" && <Pro themes={THEMES} themeIndex={themeIndex} />}
 
         {/* ================= PRESET BUTTONS ================= */}
         <div className="px-3 py-1 text-sm">
@@ -880,24 +894,45 @@ export default function Popup() {
 
             <button
               onClick={handleSavePreset}
-              style={{ borderColor: COLORS.TEXT }}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(hoveredButton === "save"
+                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                  : {}),
+              }}
               className="px-1.5 cursor-pointer border rounded-xs"
+              onMouseEnter={() => setHoveredButton("save")}
+              onMouseLeave={() => setHoveredButton(null)}
             >
               + Save Preset
             </button>
 
             <button
               onClick={handleDeletePreset}
-              style={{ borderColor: COLORS.TEXT }}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(hoveredButton === "delete"
+                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                  : {}),
+              }}
               className="px-1.5 cursor-pointer border rounded-xs"
+              onMouseEnter={() => setHoveredButton("delete")}
+              onMouseLeave={() => setHoveredButton(null)}
             >
               - Delete Preset
             </button>
 
             <button
               onClick={handleResetFilters}
-              style={{ borderColor: COLORS.TEXT }}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(hoveredButton === "reset"
+                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                  : {}),
+              }}
               className="px-1.5 cursor-pointer border rounded-xs"
+              onMouseEnter={() => setHoveredButton("reset")}
+              onMouseLeave={() => setHoveredButton(null)}
             >
               Reset Filters
             </button>
@@ -909,8 +944,15 @@ export default function Popup() {
               <button
                 key={preset.name}
                 onClick={() => handleLoadPreset(preset.name)}
-                style={{ borderColor: COLORS.TEXT }}
+                style={{
+                  borderColor: COLORS.TEXT,
+                  ...(hoveredButton === `preset-${preset.name}`
+                    ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                    : {}),
+                }}
                 className="px-1.5 cursor-pointer border rounded-xs"
+                onMouseEnter={() => setHoveredButton(`preset-${preset.name}`)}
+                onMouseLeave={() => setHoveredButton(null)}
               >
                 {preset.name}
               </button>
@@ -918,8 +960,15 @@ export default function Popup() {
 
             <button
               onClick={handleBassBoost}
-              style={{ borderColor: COLORS.TEXT }}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(hoveredButton === "bassboost"
+                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                  : {}),
+              }}
               className="px-1.5 cursor-pointer border rounded-xs"
+              onMouseEnter={() => setHoveredButton("bassboost")}
+              onMouseLeave={() => setHoveredButton(null)}
             >
               Bass Boost
             </button>
@@ -938,8 +987,15 @@ export default function Popup() {
         <div className="flex justify-center mb-5">
           <button
             onClick={eqActive ? stopEq : startEq}
-            style={{ borderColor: COLORS.TEXT }}
+            style={{
+              borderColor: COLORS.TEXT,
+              ...(hoveredButton === "main"
+                ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                : {}),
+            }}
             className="px-1.5 cursor-pointer border rounded-xs"
+            onMouseEnter={() => setHoveredButton("main")}
+            onMouseLeave={() => setHoveredButton(null)}
           >
             {eqActive ? "Stop EQing This Tab" : "Start EQing This Tab"}
           </button>
