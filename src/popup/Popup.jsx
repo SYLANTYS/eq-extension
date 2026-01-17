@@ -13,11 +13,18 @@ const THEMES = [
     POINT: "#c6f6dd",
     SHELF: "#8a689e",
   },
+  //USA
+  {
+    BACKGROUND: "#1f2f4a",
+    TEXT: "#dddddd",
+    POINT: "#ffffff",
+    SHELF: "#b02020",
+  },
   //monochrome
   {
     BACKGROUND: "#242424",
-    TEXT: "#ffffff",
-    POINT: "#cfcfcf",
+    TEXT: "#cccccc",
+    POINT: "#ffffff",
     SHELF: "#0a0a0a",
   },
   //terminal
@@ -40,13 +47,6 @@ const THEMES = [
     TEXT: "#f2d9a6",
     POINT: "#e6c27a",
     SHELF: "#7a4f9a",
-  },
-  //USA
-  {
-    BACKGROUND: "#1f2f4a",
-    TEXT: "#ffffff",
-    POINT: "#ffffff",
-    SHELF: "#b02020",
   },
   //Hungary / Italy
   {
