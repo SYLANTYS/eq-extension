@@ -1074,7 +1074,13 @@ export default function Popup() {
         {/* Bottom row */}
         <div className="flex items-center justify-between">
           <div>
-            ☕<u>Buy Me a Coffee</u>☕
+            <a
+              href="https://buymeacoffee.com/airsaudio"
+              target="_blank"
+              rel="noreferrer"
+            >
+              ☕<u>Buy Me a Coffee</u>☕
+            </a>
           </div>
 
           <div>

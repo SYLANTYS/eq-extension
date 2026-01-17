@@ -45,5 +45,4 @@ Load in Chrome:
 
 ## TODO
 
-- Set up buy me coffee link
 - Pro Tab (stripe)
