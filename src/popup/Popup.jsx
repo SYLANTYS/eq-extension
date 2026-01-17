@@ -6,13 +6,55 @@ import Pro from "./components/Pro";
 
 // Theme definitions - add new themes as additional objects
 const THEMES = [
+  //default
   {
-    BACKGROUND: "#ff3e50",
-    TEXT: "#00deb3",
-    POINT: "#fff6dd",
-    SHELF: "#ff689e",
+    BACKGROUND: "#2c3e50",
+    TEXT: "#f5deb3",
+    POINT: "#c6f6dd",
+    SHELF: "#8a689e",
   },
-  // Future themes can be added here
+  //monochrome
+  {
+    BACKGROUND: "#242424",
+    TEXT: "#ffffff",
+    POINT: "#cfcfcf",
+    SHELF: "#0a0a0a",
+  },
+  //terminal
+  {
+    BACKGROUND: "#070b09",
+    TEXT: "#7fe3ae",
+    POINT: "#bfead3",
+    SHELF: "#4b5fe0",
+  },
+  //red and white
+  {
+    BACKGROUND: "#f1f0dc",
+    TEXT: "#8b1a1a",
+    POINT: "#ba3434",
+    SHELF: "#4a0000",
+  },
+  //purple gold
+  {
+    BACKGROUND: "#2a2436",
+    TEXT: "#f2d9a6",
+    POINT: "#e6c27a",
+    SHELF: "#7a4f9a",
+  },
+  //USA
+  {
+    BACKGROUND: "#1f2f4a",
+    TEXT: "#ffffff",
+    POINT: "#ffffff",
+    SHELF: "#b02020",
+  },
+  //Hungary / Italy
+  {
+    BACKGROUND: "#7a1414",
+    TEXT: "#ffffff",
+    POINT: "#2fbf5f",
+    SHELF: "#ffffff",
+  },
 ];
 
 export default function Popup() {
@@ -20,7 +62,11 @@ export default function Popup() {
   const [eqActive, setEqActive] = useState(true);
   const [currentTabId, setCurrentTabId] = useState(null);
   const [activeTab, setActiveTab] = useState("Controls");
-  const [themeIndex, setThemeIndex] = useState(0);
+  const [themeIndex, setThemeIndex] = useState(() => {
+    // Load theme from localStorage or default to 0
+    const stored = localStorage.getItem("eqThemeIndex");
+    return stored ? JSON.parse(stored) : 1;
+  });
   const [hoveredTab, setHoveredTab] = useState(null);
   const [hoveredButton, setHoveredButton] = useState(null);
   const controlsRef = useRef(null);
@@ -873,7 +919,13 @@ export default function Popup() {
         {activeTab === "ActiveTabs" && (
           <ActiveTabs themes={THEMES} themeIndex={themeIndex} />
         )}
-        {activeTab === "Pro" && <Pro themes={THEMES} themeIndex={themeIndex} />}
+        {activeTab === "Pro" && (
+          <Pro
+            themes={THEMES}
+            themeIndex={themeIndex}
+            onThemeChange={setThemeIndex}
+          />
+        )}
 
         {/* ================= PRESET BUTTONS ================= */}
         <div className="px-3 py-1 text-sm">

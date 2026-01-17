@@ -545,11 +545,15 @@ const Controls = forwardRef(function Controls(
                 >
                   <stop
                     offset="0%"
-                    stopColor={cy < CENTER_Y ? nodeColor : "#ffffff00"}
+                    stopColor={
+                      cy < CENTER_Y ? nodeColor : `${COLORS.BACKGROUND}00`
+                    }
                   />
                   <stop
                     offset="100%"
-                    stopColor={cy < CENTER_Y ? "#ffffff00" : nodeColor}
+                    stopColor={
+                      cy < CENTER_Y ? `${COLORS.BACKGROUND}00` : nodeColor
+                    }
                   />
                 </linearGradient>
               );
@@ -640,7 +644,7 @@ const Controls = forwardRef(function Controls(
                   y1="235"
                   x2={xPos}
                   y2="265"
-                  stroke="#ffffff00"
+                  stroke={`${COLORS.BACKGROUND}00`}
                   strokeWidth="1"
                 />
 
