@@ -7,10 +7,10 @@ import Pro from "./components/Pro";
 // Theme definitions - add new themes as additional objects
 const THEMES = [
   {
-    BACKGROUND: "#2c3e50",
-    TEXT: "#f5deb3",
-    POINT: "#c6f6dd",
-    SHELF: "#8a689e",
+    BACKGROUND: "#ff3e50",
+    TEXT: "#00deb3",
+    POINT: "#fff6dd",
+    SHELF: "#ff689e",
   },
   // Future themes can be added here
 ];
