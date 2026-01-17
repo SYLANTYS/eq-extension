@@ -806,7 +806,7 @@ export default function Popup() {
       <div className="flex-1 overflow-y-auto pb-19.5 scrollbar-none">
         {/* ================= HEADER ================= */}
         <header className="flex items-center justify-between px-3 py-2 mb-2">
-          <div className="text-3xl font-bold">Ears Audio Toolkit</div>
+          <div className="text-3xl font-bold">Airs Audio System</div>
 
           <div className="text-sm text-right px-1">
             <div>
@@ -816,7 +816,23 @@ export default function Popup() {
               </i>
             </div>
             <div>
-              Feel free to <u>email me</u> or visit the <u>chrome web store</u>.
+              Feel free to{" "}
+              <a
+                href="mailto:2017catch.21@gmail.com"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <u>email me</u>
+              </a>{" "}
+              or visit the{" "}
+              <a
+                href="https://chromewebstore.google.com/detail/Ears:%20Bass%20Boost%2C%20EQ%20Any%20Audio!/nfdfiepdkbnoanddpianalelglmfooik"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <u>chrome web store</u>
+              </a>
+              .
             </div>
           </div>
         </header>
@@ -1056,7 +1072,7 @@ export default function Popup() {
         {/* Bottom row */}
         <div className="flex items-center justify-between">
           <div>
-            <u>Support development with Ears Pro!</u>
+            ☕<u>Buy Me a Coffee</u>☕
           </div>
 
           <div>

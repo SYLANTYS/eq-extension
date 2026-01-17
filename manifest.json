@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "EQ Extension",
+  "name": "Airs Audio System",
   "version": "0.1.0",
   "action": {
     "default_popup": "popup/index.html"

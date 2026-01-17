@@ -45,4 +45,7 @@ Load in Chrome:
 
 ## TODO
 
-- Pro Tab (create 3 themes)
+- Links:
+  - Add buy me coffee link
+  - Add chrome web store link
+- Pro Tab (stripe)

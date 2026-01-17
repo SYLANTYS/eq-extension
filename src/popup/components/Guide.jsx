@@ -6,19 +6,19 @@ export default function Guide({ themes = [], themeIndex = 0 }) {
       style={{ borderColor: COLORS.TEXT }}
     >
       <div
-        className="text-base text-start overflow-y-auto h-full scrollbar-none"
+        className="pt-0.5 text-base text-start overflow-y-auto h-full scrollbar-none"
         style={{ color: COLORS.TEXT }}
       >
         <p className="mb-3">
-          When you click the Ears icon, the current tab is added to Ears. To add
-          another tab, open that tab, then click the Ears icon again.
+          When you click the Airs icon, the current tab is added to Airs. To add
+          another tab, open that tab, then click the Airs icon again.
         </p>
         <h3 className="text-2xl font-bold">EQ</h3>
         <p className="mb-3">
           The movable dots each represent a filter used to equalize (or EQ) the
           audio. Filters allow you to boost or lower certain frequencies (i.e.
-          just part of the treble or bass). The purple dots act as shelf filters
-          while the blue dots act as notch filters.
+          just part of the treble or bass). The red dots act as shelf filters
+          while the white dots act as notch filters.
         </p>
         <p className="mb-3">
           Moving a dot left or right selects lower or higher frequencies, while

@@ -56,7 +56,7 @@ export default function Pro({
       style={{ borderColor: COLORS.TEXT }}
     >
       <div className="text-center" style={{ color: COLORS.TEXT }}>
-        <h2 className="text-2xl font-bold mb-6">Ears Pro</h2>
+        <h2 className="text-2xl font-bold mb-6">Airs Pro</h2>
 
         {/* Theme Color Picker */}
         <div className="mb-8">
