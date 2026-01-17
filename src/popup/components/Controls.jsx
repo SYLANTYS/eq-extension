@@ -7,16 +7,6 @@ import {
 } from "react";
 import { generateBellCurve } from "./graphs";
 
-// Theme colors from index.css
-const COLORS = {
-  BACKGROUND: "#2c3e50",
-  TEXT: "#f5deb3",
-  POINT: "#c6f6dd",
-  SHELF: "#8a689e",
-  BACKGROUND_TRANSPARENT: "#2c3e5000",
-  TEXT_TRANSPARENT: "#f5deb350",
-};
-
 /**
  * Controls Component - Interactive EQ Visualizer
  *
@@ -51,6 +41,8 @@ const Controls = forwardRef(function Controls(
     onEqNodesChange,
     spectrumData = [],
     eqActive = true,
+    themes = [],
+    themeIndex = 0,
   },
   ref
 ) {
@@ -59,6 +51,9 @@ const Controls = forwardRef(function Controls(
   const [spectrumEnabled, setSpectrumEnabledState] = useState(false);
   const svgRef = useRef(null);
   const shiftDragStartYRef = useRef(null); // Track initial Y position for shift drag
+
+  // Get current theme colors
+  const COLORS = themes[themeIndex] || {};
 
   // Throttle tracking for ensuring backend is ready (1 second cooldown)
   const lastEnsureTimeRef = useRef(0);
@@ -473,7 +468,7 @@ const Controls = forwardRef(function Controls(
         <button
           onClick={() => setSpectrumEnabled(!spectrumEnabled)}
           disabled={!eqActive}
-          className={`my-6 text-xs -rotate-90 cursor-pointer border px-2 rounded-b-sm rounded-t-xs transition-colors ${
+          className={`my-6 text-xs -rotate-90 cursor-pointer border px-2 rounded-b-sm rounded-t-xs ${
             !eqActive
               ? "opacity-50 cursor-not-allowed border-eq-yellow/50"
               : spectrumEnabled
@@ -531,15 +526,11 @@ const Controls = forwardRef(function Controls(
                 >
                   <stop
                     offset="0%"
-                    stopColor={
-                      cy < CENTER_Y ? nodeColor : COLORS.BACKGROUND_TRANSPARENT
-                    }
+                    stopColor={cy < CENTER_Y ? nodeColor : "#ffffff00"}
                   />
                   <stop
                     offset="100%"
-                    stopColor={
-                      cy < CENTER_Y ? COLORS.BACKGROUND_TRANSPARENT : nodeColor
-                    }
+                    stopColor={cy < CENTER_Y ? "#ffffff00" : nodeColor}
                   />
                 </linearGradient>
               );
@@ -630,7 +621,7 @@ const Controls = forwardRef(function Controls(
                   y1="235"
                   x2={xPos}
                   y2="265"
-                  stroke={COLORS.TEXT_TRANSPARENT}
+                  stroke="#ffffff00"
                   strokeWidth="1"
                 />
 

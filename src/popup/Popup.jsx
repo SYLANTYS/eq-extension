@@ -4,12 +4,27 @@ import Guide from "./components/Guide";
 import ActiveTabs from "./components/ActiveTabs";
 import Pro from "./components/Pro";
 
+// Theme definitions - add new themes as additional objects
+const THEMES = [
+  {
+    BACKGROUND: "#2c3e50",
+    TEXT: "#f5deb3",
+    POINT: "#c6f6dd",
+    SHELF: "#8a689e",
+  },
+  // Future themes can be added here
+];
+
 export default function Popup() {
   const [volume, setVolumeState] = useState(1);
   const [eqActive, setEqActive] = useState(true);
   const [currentTabId, setCurrentTabId] = useState(null);
   const [activeTab, setActiveTab] = useState("Controls");
+  const [themeIndex, setThemeIndex] = useState(0);
   const controlsRef = useRef(null);
+
+  // Get current theme colors
+  const COLORS = THEMES[themeIndex];
 
   // EQ States (lifted from Controls)
   const [nodePositions, setNodePositions] = useState({});
@@ -733,7 +748,13 @@ export default function Popup() {
   }, [eqActive, currentTabId]);
 
   return (
-    <div className="min-w-[800px] min-h-[600px] h-screen w-full overflow-hidden bg-eq-blue text-eq-yellow flex flex-col relative">
+    <div
+      className="min-w-[800px] min-h-[600px] h-screen w-full overflow-hidden flex flex-col relative"
+      style={{
+        backgroundColor: COLORS.BACKGROUND,
+        color: COLORS.TEXT,
+      }}
+    >
       <div className="flex-1 overflow-y-auto pb-19.5 scrollbar-none">
         {/* ================= HEADER ================= */}
         <header className="flex items-center justify-between px-3 py-2 mb-2">
@@ -760,11 +781,13 @@ export default function Popup() {
                 throttledEnsureBackend();
                 setActiveTab("Controls");
               }}
-              className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
-                activeTab === "Controls"
-                  ? "text-eq-blue bg-eq-yellow"
-                  : "hover:text-eq-blue hover:bg-eq-yellow"
-              }`}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(activeTab === "Controls"
+                  ? { color: COLORS.BACKGROUND, backgroundColor: COLORS.TEXT }
+                  : {}),
+              }}
+              className={`px-2 py-0.5 cursor-pointer border rounded-t-lg`}
             >
               Controls
             </button>
@@ -773,11 +796,13 @@ export default function Popup() {
                 throttledEnsureBackend();
                 setActiveTab("Guide");
               }}
-              className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
-                activeTab === "Guide"
-                  ? "text-eq-blue bg-eq-yellow"
-                  : "hover:text-eq-blue hover:bg-eq-yellow"
-              }`}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(activeTab === "Guide"
+                  ? { color: COLORS.BACKGROUND, backgroundColor: COLORS.TEXT }
+                  : {}),
+              }}
+              className={`px-2 py-0.5 cursor-pointer border rounded-t-lg`}
             >
               Guide
             </button>
@@ -786,11 +811,13 @@ export default function Popup() {
                 throttledEnsureBackend();
                 setActiveTab("ActiveTabs");
               }}
-              className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
-                activeTab === "ActiveTabs"
-                  ? "text-eq-blue bg-eq-yellow"
-                  : "hover:text-eq-blue hover:bg-eq-yellow"
-              }`}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(activeTab === "ActiveTabs"
+                  ? { color: COLORS.BACKGROUND, backgroundColor: COLORS.TEXT }
+                  : {}),
+              }}
+              className={`px-2 py-0.5 cursor-pointer border rounded-t-lg`}
             >
               Active Tabs
             </button>
@@ -799,11 +826,13 @@ export default function Popup() {
                 throttledEnsureBackend();
                 setActiveTab("Pro");
               }}
-              className={`px-2 py-0.5 cursor-pointer border border-eq-yellow rounded-t-lg ${
-                activeTab === "Pro"
-                  ? "text-eq-blue bg-eq-yellow"
-                  : "hover:text-eq-blue hover:bg-eq-yellow"
-              }`}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(activeTab === "Pro"
+                  ? { color: COLORS.BACKGROUND, backgroundColor: COLORS.TEXT }
+                  : {}),
+              }}
+              className={`px-2 py-0.5 cursor-pointer border rounded-t-lg`}
             >
               Pro
             </button>
@@ -824,6 +853,8 @@ export default function Popup() {
             onEqNodesChange={handleEqNodesChange}
             spectrumData={spectrumData}
             eqActive={eqActive}
+            themes={THEMES}
+            themeIndex={themeIndex}
           />
         )}
         {activeTab === "Guide" && <Guide />}
@@ -839,26 +870,34 @@ export default function Popup() {
               value={presetName}
               onChange={(e) => setPresetName(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSavePreset()}
-              className="border border-eq-yellow rounded-xs text-sm w-20 outline-none bg-eq-blue text-eq-yellow placeholder-eq-yellow/50"
+              style={{
+                borderColor: COLORS.TEXT,
+                backgroundColor: COLORS.BACKGROUND,
+                color: COLORS.TEXT,
+              }}
+              className="border rounded-xs text-sm w-20 outline-none placeholder-opacity-50"
             />
 
             <button
               onClick={handleSavePreset}
-              className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+              style={{ borderColor: COLORS.TEXT }}
+              className="px-1.5 cursor-pointer border rounded-xs"
             >
               + Save Preset
             </button>
 
             <button
               onClick={handleDeletePreset}
-              className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+              style={{ borderColor: COLORS.TEXT }}
+              className="px-1.5 cursor-pointer border rounded-xs"
             >
               - Delete Preset
             </button>
 
             <button
               onClick={handleResetFilters}
-              className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+              style={{ borderColor: COLORS.TEXT }}
+              className="px-1.5 cursor-pointer border rounded-xs"
             >
               Reset Filters
             </button>
@@ -870,7 +909,8 @@ export default function Popup() {
               <button
                 key={preset.name}
                 onClick={() => handleLoadPreset(preset.name)}
-                className={`px-1.5 cursor-pointer border rounded-xs border-eq-yellow hover:text-eq-blue hover:bg-eq-yellow`}
+                style={{ borderColor: COLORS.TEXT }}
+                className="px-1.5 cursor-pointer border rounded-xs"
               >
                 {preset.name}
               </button>
@@ -878,7 +918,8 @@ export default function Popup() {
 
             <button
               onClick={handleBassBoost}
-              className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+              style={{ borderColor: COLORS.TEXT }}
+              className="px-1.5 cursor-pointer border rounded-xs"
             >
               Bass Boost
             </button>
@@ -887,12 +928,18 @@ export default function Popup() {
       </div>
 
       {/* ================= FOOTER ================= */}
-      <footer className="absolute bottom-0 left-0 right-0 px-3 py-2 text-sm bg-eq-blue/90">
+      <footer
+        className="absolute bottom-0 left-0 right-0 px-3 py-2 text-sm"
+        style={{
+          backgroundColor: `${COLORS.BACKGROUND}e6`,
+        }}
+      >
         {/* Centered primary action */}
         <div className="flex justify-center mb-5">
           <button
             onClick={eqActive ? stopEq : startEq}
-            className="px-1.5 cursor-pointer border border-eq-yellow rounded-xs hover:text-eq-blue hover:bg-eq-yellow"
+            style={{ borderColor: COLORS.TEXT }}
+            className="px-1.5 cursor-pointer border rounded-xs"
           >
             {eqActive ? "Stop EQing This Tab" : "Start EQing This Tab"}
           </button>
@@ -900,11 +947,11 @@ export default function Popup() {
 
         {/* Bottom row */}
         <div className="flex items-center justify-between">
-          <div className="text-eq-yellow">
+          <div>
             <u>Support development with Ears Pro!</u>
           </div>
 
-          <div className="text-eq-yellow">
+          <div>
             <a
               href="chrome-extension://efnhmajdoaaiohaagokccdjbaibhofno/popup/index.html"
               target="_blank"
