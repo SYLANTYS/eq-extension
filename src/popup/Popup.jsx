@@ -650,48 +650,8 @@ export default function Popup() {
 
       if (cancelled) return;
 
-      // Load saved EQ state from localStorage on boot (for UI display)
-      const savedState = loadEqStateFromLocalStorage();
-      if (savedState) {
-        const {
-          nodePositions: savedPositions,
-          nodeGainValues: savedGains,
-          nodeFrequencyValues: savedFreqs,
-          nodeQValues: savedQs,
-          nodeBaseQValues: savedBaseQs,
-        } = savedState;
-        setNodePositions(savedPositions);
-        setNodeGainValues(savedGains);
-        setNodeFrequencyValues(savedFreqs);
-        setNodeQValues(savedQs);
-        setNodeBaseQValues(savedBaseQs);
-        console.log("[Popup] EQ state loaded from localStorage on boot");
-      }
-
-      if (cancelled) return;
-
-      // Ensure backend is ready FIRST before syncing saved state
+      // Ensure backend is ready FIRST before fetching from Web Audio API
       await ensureBackendReady();
-
-      if (cancelled) return;
-
-      // NOW sync saved state to Web Audio API after backend is ready
-      // This must happen AFTER ensureBackendReady and AFTER START_EQ
-      if (savedState && Object.keys(savedState.nodeGainValues).length > 0) {
-        console.log(
-          "[Popup] Attempting to sync saved state to Web Audio API..."
-        );
-        await sendMessage({
-          type: "UPDATE_EQ_NODES",
-          tabId: tab.id,
-          nodeGainValues: savedState.nodeGainValues,
-          nodeFrequencyValues: savedState.nodeFrequencyValues,
-          nodeQValues: savedState.nodeQValues,
-        });
-        console.log(
-          "[Popup] Saved EQ state synced to Web Audio API after backend ready"
-        );
-      }
 
       if (cancelled) return;
 
@@ -714,24 +674,12 @@ export default function Popup() {
 
         if (cancelled) return;
 
-        // After START_EQ, sync saved state again to ensure it takes effect
-        if (savedState && Object.keys(savedState.nodeGainValues).length > 0) {
-          console.log(
-            "[Popup] Re-syncing saved state after START_EQ to ensure it takes effect..."
-          );
-          await new Promise((r) => setTimeout(r, 100)); // Small delay to let START_EQ complete
-          await sendMessage({
-            type: "UPDATE_EQ_NODES",
-            tabId: tab.id,
-            nodeGainValues: savedState.nodeGainValues,
-            nodeFrequencyValues: savedState.nodeFrequencyValues,
-            nodeQValues: savedState.nodeQValues,
-          });
-          console.log("[Popup] Saved EQ state re-synced after START_EQ");
-        }
+        // Give offscreen time to initialize audio graphs
+        await new Promise((r) => setTimeout(r, 150));
       }
 
-      // Fetch current EQ state from Web Audio API to verify it was applied
+      // PRIMARY: Fetch current EQ state from Web Audio API (source of truth)
+      let webAudioState = null;
       try {
         const eqNodeStatus = await sendMessage({
           type: "GET_EQ_NODES",
@@ -743,8 +691,13 @@ export default function Popup() {
           const freqValues = eqNodeStatus.nodeFrequencyValues || {};
           const qValues = eqNodeStatus.nodeQValues || {};
 
-          // If Web Audio API has values, update state from it (source of truth)
+          // If Web Audio API has values, use them as source of truth
           if (Object.keys(gainValues).length > 0) {
+            webAudioState = {
+              gainValues,
+              freqValues,
+              qValues,
+            };
             initializeEqState(gainValues, freqValues, qValues);
             console.log(
               "[Popup] Web Audio API has EQ state, using it as source of truth"
@@ -752,7 +705,44 @@ export default function Popup() {
           }
         }
       } catch (e) {
-        console.warn("[Popup] Failed to fetch EQ state:", e);
+        console.warn("[Popup] Failed to fetch EQ state from Web Audio API:", e);
+      }
+
+      if (cancelled) return;
+
+      // FALLBACK: If Web Audio API had no state, load from localStorage
+      if (!webAudioState) {
+        const savedState = loadEqStateFromLocalStorage();
+        if (savedState) {
+          const {
+            nodePositions: savedPositions,
+            nodeGainValues: savedGains,
+            nodeFrequencyValues: savedFreqs,
+            nodeQValues: savedQs,
+            nodeBaseQValues: savedBaseQs,
+          } = savedState;
+          setNodePositions(savedPositions);
+          setNodeGainValues(savedGains);
+          setNodeFrequencyValues(savedFreqs);
+          setNodeQValues(savedQs);
+          setNodeBaseQValues(savedBaseQs);
+          console.log("[Popup] Falling back to localStorage for EQ state");
+
+          // Sync localStorage state to Web Audio API
+          if (Object.keys(savedGains).length > 0) {
+            console.log(
+              "[Popup] Syncing localStorage state to Web Audio API..."
+            );
+            await sendMessage({
+              type: "UPDATE_EQ_NODES",
+              tabId: tab.id,
+              nodeGainValues: savedGains,
+              nodeFrequencyValues: savedFreqs,
+              nodeQValues: savedQs,
+            });
+            console.log("[Popup] localStorage state synced to Web Audio API");
+          }
+        }
       }
     }
 
@@ -826,7 +816,7 @@ export default function Popup() {
               </a>{" "}
               or visit the{" "}
               <a
-                href="https://chromewebstore.google.com/detail/Ears:%20Bass%20Boost%2C%20EQ%20Any%20Audio!/nfdfiepdkbnoanddpianalelglmfooik"
+                href="https://chromewebstore.google.com/detail/airs-audio-system/efnhmajdoaaiohaagokccdjbaibhofno"
                 target="_blank"
                 rel="noreferrer"
               >

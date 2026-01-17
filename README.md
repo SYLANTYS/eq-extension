@@ -45,7 +45,5 @@ Load in Chrome:
 
 ## TODO
 
-- Links:
-  - Add buy me coffee link
-  - Add chrome web store link
+- Set up buy me coffee link
 - Pro Tab (stripe)
