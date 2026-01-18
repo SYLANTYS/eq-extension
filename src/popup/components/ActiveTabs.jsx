@@ -27,7 +27,7 @@ export default function ActiveTabs({ themes = [], themeIndex = 0 }) {
 
       // Fetch full tab details for each active tab
       const tabDetails = await Promise.all(
-        res.tabIds.map((tabId) => chrome.tabs.get(tabId).catch(() => null))
+        res.tabIds.map((tabId) => chrome.tabs.get(tabId).catch(() => null)),
       );
 
       // Filter out null results and set state

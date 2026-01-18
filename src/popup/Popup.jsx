@@ -828,7 +828,7 @@ export default function Popup() {
               </a>{" "}
               or visit the{" "}
               <a
-                href="https://chromewebstore.google.com/detail/airs-audio-system/efnhmajdoaaiohaagokccdjbaibhofno"
+                href="https://chromewebstore.google.com/detail/airs-audio-system/ibhmgglejliilciffebcbnklceoblcbe"
                 target="_blank"
                 rel="noreferrer"
               >
