@@ -46,3 +46,7 @@ Load in Chrome:
 ## TODO
 
 - Pro Tab (stripe)
+  - set up paywall vercel website (copy my monkmodewebsite)
+  - create new supabase database
+  - create new production stripe (test mode for webhooks)
+  - Pro tab new theme logic (allows paying users all themes)
