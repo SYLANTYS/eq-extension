@@ -15,6 +15,7 @@ export default function Pro({
   const COLORS = themes[themeIndex] || {};
   const [isProUser, setIsProUser] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -52,6 +53,8 @@ export default function Pro({
       }
     } catch (error) {
       console.error("Error checking pro status:", error);
+    } finally {
+      setIsChecking(false);
     }
   }
 
@@ -81,6 +84,16 @@ export default function Pro({
     } finally {
       setLoading(false);
     }
+  }
+
+  // Prevent rendering until we know the login status
+  if (isChecking) {
+    return (
+      <div
+        className="w-[730px] h-[365px] ml-13 relative flex items-center justify-center border"
+        style={{ borderColor: COLORS.TEXT }}
+      ></div>
+    );
   }
 
   // Handle theme selection
