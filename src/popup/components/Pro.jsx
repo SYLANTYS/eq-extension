@@ -223,7 +223,7 @@ export default function Pro({
                 Login
               </button>
               <a
-                href="https://ears-audio-system.vercel.app/"
+                href="https://airs-audio-system.vercel.app/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="py-1 px-4 rounded text-xs font-semibold transition hover:opacity-90 cursor-pointer"
