@@ -44,7 +44,7 @@ const Controls = forwardRef(function Controls(
     themes = [],
     themeIndex = 0,
   },
-  ref
+  ref,
 ) {
   const [draggingNode, setDraggingNode] = useState(null);
   const [isShiftDrag, setIsShiftDrag] = useState(false);
@@ -71,7 +71,7 @@ const Controls = forwardRef(function Controls(
   useEffect(() => {
     localStorage.setItem(
       "spectrumVisualizerEnabled",
-      JSON.stringify(spectrumEnabled)
+      JSON.stringify(spectrumEnabled),
     );
   }, [spectrumEnabled]);
 
@@ -101,14 +101,14 @@ const Controls = forwardRef(function Controls(
       await new Promise((resolve) => {
         chrome.runtime.sendMessage({ type: "PING_BG" }, (res) => {
           const err = chrome.runtime.lastError;
-          resolve(err ? { ok: false } : res ?? { ok: true });
+          resolve(err ? { ok: false } : (res ?? { ok: true }));
         });
       });
 
       await new Promise((resolve) => {
         chrome.runtime.sendMessage({ type: "REINIT_MISSING_AUDIO" }, (res) => {
           const err = chrome.runtime.lastError;
-          resolve(err ? { ok: false } : res ?? { ok: true });
+          resolve(err ? { ok: false } : (res ?? { ok: true }));
         });
       });
 
@@ -124,8 +124,8 @@ const Controls = forwardRef(function Controls(
             },
             (res) => {
               const err = chrome.runtime.lastError;
-              resolve(err ? { ok: false } : res ?? { ok: true });
-            }
+              resolve(err ? { ok: false } : (res ?? { ok: true }));
+            },
           );
         });
       }
@@ -280,7 +280,7 @@ const Controls = forwardRef(function Controls(
         nodeGainValues,
         nodeFrequencyValues,
         newQValues,
-        newBaseQValues
+        newBaseQValues,
       );
       return;
     }
@@ -325,7 +325,7 @@ const Controls = forwardRef(function Controls(
       newGainValues,
       newFrequencyValues,
       newQValues,
-      nodeBaseQValues
+      nodeBaseQValues,
     );
 
     // Debug output with stored state values
@@ -609,7 +609,7 @@ const Controls = forwardRef(function Controls(
               GEOMETRIC_RATIO,
               getBaseXPos,
               getNodePosition,
-              getFrequencyFromXPos
+              getFrequencyFromXPos,
             );
 
             // Determine node type: shelf (index 2, 12) or mid-range EQ (index 3-11)
@@ -644,7 +644,7 @@ const Controls = forwardRef(function Controls(
                   y1="235"
                   x2={xPos}
                   y2="265"
-                  stroke={`${COLORS.BACKGROUND}00`}
+                  stroke={`${COLORS.TEXT}80`}
                   strokeWidth="1"
                 />
 
@@ -683,15 +683,15 @@ const Controls = forwardRef(function Controls(
                       draggingNode === index
                         ? COLORS.BACKGROUND
                         : isShelf
-                        ? COLORS.SHELF
-                        : COLORS.POINT
+                          ? COLORS.SHELF
+                          : COLORS.POINT
                     }
                     stroke={
                       draggingNode === index
                         ? "rgb(255 195 0)"
                         : isShelf
-                        ? COLORS.SHELF
-                        : COLORS.POINT
+                          ? COLORS.SHELF
+                          : COLORS.POINT
                     }
                     strokeWidth={draggingNode === index ? "2" : "1"}
                     className="cursor-pointer"
