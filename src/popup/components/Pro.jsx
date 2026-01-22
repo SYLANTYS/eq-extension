@@ -64,9 +64,7 @@ export default function Pro({
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo:
-            // "chrome-extension://ibhmgglejliilciffebcbnklceoblcbe/popup/index.html", //REAL redirect
-            "chrome-extension://efnhmajdoaaiohaagokccdjbaibhofno/popup/index.html", // DEV redirect
+          redirectTo: `${window.location.origin}/popup/index.html`,
         },
       });
 
