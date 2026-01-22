@@ -331,13 +331,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
         // Find sessions that are in BG but not in offscreen
         const missingTabs = activeTabIds.filter(
-          (tabId) => !offscreenSet.has(tabId)
+          (tabId) => !offscreenSet.has(tabId),
         );
 
         console.log(
           "[BG] Found",
           missingTabs.length,
-          "sessions missing from offscreen, reinitializing..."
+          "sessions missing from offscreen, reinitializing...",
         );
 
         const reinitialized = [];

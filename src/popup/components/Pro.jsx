@@ -16,11 +16,9 @@ export default function Pro({
   const [isProUser, setIsProUser] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
-  const [showLogin, setShowLogin] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [hoveredLoginButton, setHoveredLoginButton] = useState(false);
 
   // Check authentication status and pro status on mount
   useEffect(() => {
@@ -58,29 +56,28 @@ export default function Pro({
     }
   }
 
-  async function handleLogin(e) {
-    e.preventDefault();
+  async function handleGoogleLogin() {
     setLoading(true);
     setLoginError("");
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo:
+            // "chrome-extension://ibhmgglejliilciffebcbnklceoblcbe/popup/index.html", //REAL redirect
+            "chrome-extension://efnhmajdoaaiohaagokccdjbaibhofno/popup/index.html", // DEV redirect
+        },
       });
 
       if (error) throw error;
 
-      setIsLoggedIn(true);
-      setShowLogin(false);
-
-      // Check pro status after login
-      await checkProStatus();
-
-      setEmail("");
-      setPassword("");
+      // Open OAuth URL in a new tab
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
     } catch (error) {
-      setLoginError(error.message || "Login failed. Please try again.");
+      setLoginError(error.message || "Google login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -148,97 +145,50 @@ export default function Pro({
       style={{ borderColor: COLORS.TEXT }}
     >
       {/* Top Left Auth Buttons */}
-      {!isLoggedIn && (
-        <div className="absolute top-4 left-4 flex gap-2">
-          {showLogin ? (
-            <form onSubmit={handleLogin} className="flex gap-2">
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="p-1 rounded text-xs"
-                style={{
-                  backgroundColor: COLORS.BACKGROUND,
-                  color: COLORS.TEXT,
-                  border: `1px solid ${COLORS.TEXT}66`,
-                }}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="p-1 rounded text-xs"
-                style={{
-                  backgroundColor: COLORS.BACKGROUND,
-                  color: COLORS.TEXT,
-                  border: `1px solid ${COLORS.TEXT}66`,
-                }}
-                required
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="py-1 px-3 rounded text-xs font-semibold transition cursor-pointer hover:opacity-90"
-                style={{
-                  backgroundColor: loading ? COLORS.TEXT + "66" : COLORS.POINT,
-                  color: COLORS.BACKGROUND,
-                  cursor: loading ? "not-allowed" : "pointer",
-                }}
-              >
-                {loading ? "Loading..." : "Login"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLogin(false)}
-                className="py-1 px-3 rounded text-xs cursor-pointer hover:opacity-90"
-                style={{
-                  backgroundColor: COLORS.TEXT + "22",
-                  color: COLORS.TEXT,
-                }}
-              >
-                Cancel
-              </button>
-              {loginError && (
-                <p
-                  className="text-xs font-semibold"
-                  style={{ color: "#ff4444" }}
-                >
-                  {loginError}
-                </p>
-              )}
-            </form>
-          ) : (
-            <>
-              <button
-                onClick={() => setShowLogin(true)}
-                className="py-1 px-4 rounded text-xs font-semibold transition hover:opacity-90 cursor-pointer"
-                style={{
-                  backgroundColor: COLORS.POINT,
-                  color: COLORS.BACKGROUND,
-                }}
-              >
-                Login
-              </button>
-              <a
-                href="https://airs-audio-system.vercel.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-1 px-4 rounded text-xs font-semibold transition hover:opacity-90 cursor-pointer"
-                style={{
-                  backgroundColor: COLORS.TEXT + "22",
-                  color: COLORS.TEXT,
-                  textDecoration: "none",
-                }}
-              >
-                Get Airs Pro
-              </a>
-            </>
+      <div className="absolute top-4 left-4 flex gap-2 flex-col">
+        <div className="flex gap-2">
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            onMouseEnter={() => setHoveredLoginButton(true)}
+            onMouseLeave={() => setHoveredLoginButton(false)}
+            className="py-1 px-4 rounded text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+            style={{
+              backgroundColor: loading ? COLORS.TEXT + "66" : COLORS.POINT,
+              color: COLORS.BACKGROUND,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          >
+            {loading ? "Logging in..." : "Login with Google"}
+          </button>
+          <a
+            href="https://airs-audio-system.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="py-1 px-4 rounded text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+            style={{
+              backgroundColor: COLORS.TEXT + "22",
+              color: COLORS.TEXT,
+              textDecoration: "none",
+            }}
+          >
+            Get Airs Pro
+          </a>
+          {loginError && (
+            <p className="text-xs font-semibold" style={{ color: "#ff4444" }}>
+              {loginError}
+            </p>
           )}
         </div>
-      )}
+        {hoveredLoginButton && (
+          <p className="text-xs" style={{ color: COLORS.TEXT }}>
+            <i>
+              After Google login, Chrome may block the final step. <br></br>
+              Click the address bar, press ENTER, then return to the extension.
+            </i>
+          </p>
+        )}
+      </div>
 
       <div className="text-center w-full px-8" style={{ color: COLORS.TEXT }}>
         <h2 className="text-2xl font-bold mb-6">Airs Pro</h2>
@@ -252,10 +202,17 @@ export default function Pro({
         </div>
 
         {/* Pro Status Message */}
-        {isLoggedIn && (
+        {isLoggedIn && isProUser && (
           <div className="mb-4">
             <p className="text-sm" style={{ color: COLORS.TEXT }}>
               <i>Pro Account Active - More themes to come!</i>
+            </p>
+          </div>
+        )}
+        {isLoggedIn && !isProUser && (
+          <div className="mb-4">
+            <p className="text-sm" style={{ color: COLORS.TEXT }}>
+              <i>Free Account - Upgrade to unlock premium themes.</i>
             </p>
           </div>
         )}

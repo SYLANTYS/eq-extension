@@ -59,7 +59,7 @@ function connectEqChain(
   filters,
   gainNode,
   destination,
-  analyserNode = null
+  analyserNode = null,
 ) {
   let previousNode = sourceNode;
 
@@ -146,7 +146,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           eqFilters,
           gainNode,
           audioContext.destination,
-          analyserNode
+          analyserNode,
         );
 
         // Store this tab's audio graph including EQ filters and analyser
@@ -163,7 +163,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         console.log(
           "[OFFSCREEN] Audio pipeline ready for tab",
           tabId,
-          "(source → 13 EQ filters → gain → destination)"
+          "(source → 13 EQ filters → gain → destination)",
         );
 
         sendResponse({ ok: true, tabId });
@@ -186,7 +186,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         // Set gain immediately at the current audio time
         graph.gainNode.gain.setValueAtTime(
           msg.value,
-          graph.audioContext.currentTime
+          graph.audioContext.currentTime,
         );
       }
       sendResponse({ ok: true });
@@ -241,7 +241,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
         console.log(
           "[OFFSCREEN] Audio + tab capture fully released for tab",
-          tabId
+          tabId,
         );
         sendResponse({ ok: true });
       } catch (e) {
@@ -304,21 +304,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           if (nodeFrequencyValues && i in nodeFrequencyValues) {
             filter.frequency.setValueAtTime(
               nodeFrequencyValues[i],
-              graph.audioContext.currentTime
+              graph.audioContext.currentTime,
             );
           }
 
           if (nodeQValues && i in nodeQValues) {
             filter.Q.setValueAtTime(
               nodeQValues[i],
-              graph.audioContext.currentTime
+              graph.audioContext.currentTime,
             );
           }
 
           if (nodeGainValues && i in nodeGainValues) {
             filter.gain.setValueAtTime(
               nodeGainValues[i],
-              graph.audioContext.currentTime
+              graph.audioContext.currentTime,
             );
           }
         }
