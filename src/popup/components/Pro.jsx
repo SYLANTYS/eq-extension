@@ -65,6 +65,7 @@ export default function Pro({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/popup/index.html`,
+          skipBrowserRedirect: true,
         },
       });
 
@@ -150,7 +151,7 @@ export default function Pro({
             disabled={loading}
             onMouseEnter={() => setHoveredLoginButton(true)}
             onMouseLeave={() => setHoveredLoginButton(false)}
-            className="py-1 px-4 rounded text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+            className="py-1 px-3 rounded text-xs font-semibold hover:opacity-90 cursor-pointer"
             style={{
               backgroundColor: loading ? COLORS.TEXT + "66" : COLORS.POINT,
               color: COLORS.BACKGROUND,
@@ -163,7 +164,7 @@ export default function Pro({
             href="https://airs-audio-system.vercel.app/"
             target="_blank"
             rel="noopener noreferrer"
-            className="py-1 px-4 rounded text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+            className="py-1 px-3 rounded text-xs font-semibold hover:opacity-90 cursor-pointer"
             style={{
               backgroundColor: COLORS.TEXT + "22",
               color: COLORS.TEXT,
@@ -189,7 +190,12 @@ export default function Pro({
       </div>
 
       <div className="text-center w-full px-8" style={{ color: COLORS.TEXT }}>
-        <h2 className="text-2xl font-bold mb-6">Airs Pro</h2>
+        <h2
+          className="text-2xl font-bold mb-6"
+          style={isProUser ? { textShadow: `0 0 8px ${COLORS.TEXT}` } : {}}
+        >
+          Airs Pro
+        </h2>
 
         {/* Theme Color Picker */}
         <div className="mb-6">

@@ -4,6 +4,11 @@ import Guide from "./components/Guide";
 import ActiveTabs from "./components/ActiveTabs";
 import Pro from "./components/Pro";
 
+// Q-factor configuration constants
+const Q_MULTIPLIER = 1.5; // Multiplier for gain-dependent Q calculation
+const DEFAULT_PEAKING_Q = 0.3; // Default Q for peaking filters
+const DEFAULT_SHELF_Q = 0.75; // Default Q for shelf filters
+
 // Theme definitions - add new themes as additional objects
 const THEMES = [
   //default
@@ -150,11 +155,12 @@ export default function Popup() {
       const recalculatedQValues = {};
       for (let i = 0; i < 13; i++) {
         const isShelf = i === 2 || i === 12;
-        const baseQ = nodeBaseQValues[i] ?? (isShelf ? 0.75 : 0.3);
+        const baseQ =
+          nodeBaseQValues[i] ?? (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
         const gain = nodeGainValues[i] ?? 0;
         recalculatedQValues[i] = isShelf
           ? baseQ
-          : baseQ * (1.5 - Math.abs(gain) / 30);
+          : baseQ * (Q_MULTIPLIER - Math.abs(gain) / 30);
       }
 
       await sendMessage({
@@ -188,8 +194,9 @@ export default function Popup() {
     for (let i = 0; i < frequencies.length; i++) {
       completeGainValues[i] = 0; // 0 dB default
       completeFreqValues[i] = frequencies[i];
-      // Default baseQ values: 0.75 for shelves, 0.3 for peaking
-      completeBaseQValues[i] = i === 2 || i === 12 ? 0.75 : 0.3;
+      // Default baseQ values: shelf Q for shelves, peaking Q for mid-range
+      completeBaseQValues[i] =
+        i === 2 || i === 12 ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q;
     }
 
     // Override with provided values
@@ -484,7 +491,8 @@ export default function Popup() {
       for (let i = 0; i < frequencies.length; i++) {
         defaultGainValues[i] = 0; // 0 dB (no boost/cut)
         defaultFreqValues[i] = frequencies[i];
-        defaultQValues[i] = i === 2 || i === 12 ? 0.75 : 0.3; // Shelf Q vs peaking Q
+        defaultQValues[i] =
+          i === 2 || i === 12 ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q; // Shelf Q vs peaking Q
       }
 
       await sendMessage({
@@ -534,27 +542,27 @@ export default function Popup() {
   }
 
   // Helper function to convert baseQ to Q
-  // Formula: Q = isShelf ? baseQ : baseQ * (1.5 - Math.abs(gaindB) / 30)
+  // Formula: Q = isShelf ? baseQ : baseQ * (Q_MULTIPLIER - Math.abs(gaindB) / 30)
   function baseQToQ(index, baseQ, gaindB) {
     const isShelf = index === 2 || index === 12;
     if (isShelf) {
       return baseQ; // For shelves, Q and baseQ are the same
     } else {
-      const multiplier = 1.5 - Math.abs(gaindB) / 30;
+      const multiplier = Q_MULTIPLIER - Math.abs(gaindB) / 30;
       return baseQ * multiplier;
     }
   }
 
   // Helper function to convert Q back to baseQ
-  // Formula: Q = isShelf ? baseQ : baseQ * (1.5 - Math.abs(gaindB) / 30)
-  // Reverse: baseQ = Q / (1.5 - Math.abs(gaindB) / 30)
+  // Formula: Q = isShelf ? baseQ : baseQ * (Q_MULTIPLIER - Math.abs(gaindB) / 30)
+  // Reverse: baseQ = Q / (Q_MULTIPLIER - Math.abs(gaindB) / 30)
   function qToBaseQ(index, q, gaindB) {
     const isShelf = index === 2 || index === 12;
     if (isShelf) {
       return q; // For shelves, Q and baseQ are the same
     } else {
-      const divisor = 1.5 - Math.abs(gaindB) / 30;
-      return divisor !== 0 ? q / divisor : 0.3; // Fallback to default
+      const divisor = Q_MULTIPLIER - Math.abs(gaindB) / 30;
+      return divisor !== 0 ? q / divisor : DEFAULT_PEAKING_Q; // Fallback to default
     }
   }
 
@@ -576,8 +584,16 @@ export default function Popup() {
     const baseQValues = {};
     for (const indexStr in qValues) {
       const index = parseInt(indexStr, 10);
-      const baseQ = qToBaseQ(index, qValues[index], gainValues[index] ?? 0);
-      baseQValues[index] = baseQ;
+      const gain = gainValues[index] ?? 0;
+
+      // For unchanged nodes (gain = 0), use default baseQ directly
+      // For changed nodes, convert Q back to baseQ using the gain-dependent formula
+      if (gain === 0) {
+        baseQValues[index] =
+          index === 2 || index === 12 ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q;
+      } else {
+        baseQValues[index] = qToBaseQ(index, qValues[index], gain);
+      }
     }
 
     // Update all state

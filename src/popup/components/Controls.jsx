@@ -7,6 +7,11 @@ import {
 } from "react";
 import { generateBellCurve } from "./graphs";
 
+// Q-factor configuration constants (must match Popup.jsx)
+const Q_MULTIPLIER = 1.5; // Multiplier for gain-dependent Q calculation
+const DEFAULT_PEAKING_Q = 0.3; // Default Q for peaking filters
+const DEFAULT_SHELF_Q = 0.75; // Default Q for shelf filters
+
 /**
  * Controls Component - Interactive EQ Visualizer
  *
@@ -251,7 +256,7 @@ const Controls = forwardRef(function Controls(
       // Shift+drag: Adjust base Q value based on vertical movement (0.1 to 2.0)
       const logMin = Math.log(0.1);
       const logMax = Math.log(2.0);
-      const logCenter = Math.log(0.3);
+      const logCenter = Math.log(DEFAULT_PEAKING_Q);
 
       const startY = shiftDragStartYRef.current ?? mouseY;
       const qOffsetRatio = (startY - mouseY) / (SVG_HEIGHT / 3);
@@ -264,7 +269,9 @@ const Controls = forwardRef(function Controls(
       // Calculate the new Q value from baseQ and current gain
       const isShelf = draggingNode === 2 || draggingNode === 12;
       const gaindB = nodeGainValues[draggingNode] ?? 0;
-      const Q = isShelf ? baseQ : baseQ * (1.5 - Math.abs(gaindB) / 30);
+      const Q = isShelf
+        ? baseQ
+        : baseQ * (Q_MULTIPLIER - Math.abs(gaindB) / 30);
 
       // Update parent state via callback with both baseQ and new Q value
       const newBaseQValues = {
@@ -299,8 +306,10 @@ const Controls = forwardRef(function Controls(
     gaindB = Math.max(-30, Math.min(30, gaindB));
 
     const isShelf = draggingNode === 2 || draggingNode === 12;
-    const baseQ = nodeBaseQValues[draggingNode] ?? (isShelf ? 0.75 : 0.3);
-    const Q = isShelf ? baseQ : baseQ * (1.5 - Math.abs(gaindB) / 30);
+    const baseQ =
+      nodeBaseQValues[draggingNode] ??
+      (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
+    const Q = isShelf ? baseQ : baseQ * (Q_MULTIPLIER - Math.abs(gaindB) / 30);
 
     // Update parent state via callback
     const newPositions = {

@@ -5,6 +5,11 @@
 
 console.log("[OFFSCREEN] Offscreen audio script loaded");
 
+// Q-factor configuration constants (must match Popup.jsx and Controls.jsx)
+const Q_MULTIPLIER = 1.5; // Multiplier for gain-dependent Q calculation
+const DEFAULT_PEAKING_Q = 0.3; // Default Q for peaking filters
+const DEFAULT_SHELF_Q = 0.75; // Default Q for shelf filters
+
 // Map<tabId, { audioContext, sourceNode, gainNode, mediaStream, eqFilters, analyserNode }>
 // Stores isolated audio graphs, one per tab.
 // Multiple tabs can have active audio simultaneously.
@@ -32,19 +37,19 @@ function createEqFilters(audioContext) {
     if (i === 0 || i === 1) {
       // Inactive indices (5Hz, 10Hz) - set to peaking to pass through transparently
       biquad.type = "peaking";
-      biquad.Q.value = 0.3;
+      biquad.Q.value = DEFAULT_PEAKING_Q;
     } else if (i === 2) {
       // Low shelf (80 Hz)
       biquad.type = "lowshelf";
-      biquad.Q.value = 0.75;
+      biquad.Q.value = DEFAULT_SHELF_Q;
     } else if (i === 12) {
       // High shelf (20.48 kHz)
       biquad.type = "highshelf";
-      biquad.Q.value = 0.75;
+      biquad.Q.value = DEFAULT_SHELF_Q;
     } else if (i >= 3 && i <= 11) {
       // Mid-range peaking filters
       biquad.type = "peaking";
-      biquad.Q.value = 0.3;
+      biquad.Q.value = DEFAULT_PEAKING_Q;
     }
 
     filters.push(biquad);
