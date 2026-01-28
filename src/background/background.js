@@ -5,6 +5,7 @@
 // - Manage offscreen document lifecycle
 // - Capture tab audio permissions
 // - Relay control messages between popup and offscreen
+// - Store Supabase authentication tokens in extension storage
 
 console.log("[BG] Service worker loaded");
 
@@ -161,6 +162,29 @@ async function startEqForTab(tabId) {
   }
 }
 
+// Capture auth tokens from website and store in extension local storage
+// Called by content script when user completes authentication on the website
+async function captureAuthTokens(accessToken, refreshToken) {
+  try {
+    console.log(
+      "[BG] Capturing auth tokens and storing in extension storage...",
+    );
+
+    // Store tokens in chrome.storage.local
+    // Pro.jsx will read these, call setSession(), then delete them
+    await chrome.storage.local.set({
+      supabaseAccessToken: accessToken,
+      supabaseRefreshToken: refreshToken,
+    });
+
+    console.log("[BG] Successfully stored auth tokens in extension storage");
+    return { ok: true };
+  } catch (e) {
+    console.error("[BG] Exception storing auth tokens:", e);
+    return { ok: false, error: String(e?.message || e) };
+  }
+}
+
 // Listen for tab closes and clean up EQ sessions for closed tabs.
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (eqSessions.has(tabId)) {
@@ -187,6 +211,20 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // This listener must be synchronous in structure but can
 // delegate async work via IIFEs and return true.
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  // =====================
+  // CAPTURE_AUTH_TOKENS
+  // =====================
+  // Receive auth tokens from content script on thank-you page.
+  // Sets Supabase session without storing raw tokens.
+  if (msg?.type === "CAPTURE_AUTH_TOKENS") {
+    (async () => {
+      const { accessToken, refreshToken } = msg;
+      const result = await captureAuthTokens(accessToken, refreshToken);
+      sendResponse(result);
+    })();
+    return true;
+  }
+
   // =====================
   // PING_BG
   // =====================

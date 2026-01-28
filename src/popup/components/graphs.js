@@ -1,5 +1,5 @@
 // Q-factor configuration constants (must match Popup.jsx and Controls.jsx)
-const Q_MULTIPLIER = 1.5; // Multiplier for gain-dependent Q calculation
+const Q_MULTIPLIER = 2.0; // Multiplier for gain-dependent Q calculation
 const DEFAULT_PEAKING_Q = 0.3; // Default Q for peaking filters
 const DEFAULT_SHELF_Q = 0.75; // Default Q for shelf filters
 

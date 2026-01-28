@@ -1,11 +1,5 @@
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-// Initialize Supabase client
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || "",
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
-);
+import supabase from "../../lib/supabase.js";
 
 export default function Pro({
   themes = [],
@@ -18,7 +12,6 @@ export default function Pro({
   const [isChecking, setIsChecking] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
-  const [hoveredLoginButton, setHoveredLoginButton] = useState(false);
 
   // Check authentication status and pro status on mount
   useEffect(() => {
@@ -27,6 +20,43 @@ export default function Pro({
 
   async function checkProStatus() {
     try {
+      // Check for tokens stored by background service worker
+      const storage = await chrome.storage.local.get([
+        "supabaseAccessToken",
+        "supabaseRefreshToken",
+      ]);
+
+      if (storage.supabaseAccessToken && storage.supabaseRefreshToken) {
+        console.log("[PRO] Found stored auth tokens, setting session...");
+
+        // Set session with tokens from storage
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.setSession({
+            access_token: storage.supabaseAccessToken,
+            refresh_token: storage.supabaseRefreshToken,
+          });
+
+        if (sessionError) {
+          console.error("[PRO] Failed to set session:", sessionError);
+          // Clean up tokens on failure
+          await chrome.storage.local.remove([
+            "supabaseAccessToken",
+            "supabaseRefreshToken",
+          ]);
+          setIsChecking(false);
+          return;
+        }
+
+        console.log(
+          "[PRO] Session successfully set, removing stored tokens...",
+        );
+        // Delete tokens from storage after successful setSession
+        await chrome.storage.local.remove([
+          "supabaseAccessToken",
+          "supabaseRefreshToken",
+        ]);
+      }
+
       // Check if user has a session
       const {
         data: { session },
@@ -64,7 +94,7 @@ export default function Pro({
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/popup/index.html`,
+          redirectTo: `https://airs-audio-system.vercel.app/auth/callbackLogin`,
           skipBrowserRedirect: true,
         },
       });
@@ -149,8 +179,6 @@ export default function Pro({
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
-            onMouseEnter={() => setHoveredLoginButton(true)}
-            onMouseLeave={() => setHoveredLoginButton(false)}
             className="py-1 px-3 rounded text-xs font-semibold hover:opacity-90 cursor-pointer"
             style={{
               backgroundColor: loading ? COLORS.TEXT + "66" : COLORS.POINT,
@@ -179,14 +207,6 @@ export default function Pro({
             </p>
           )}
         </div>
-        {hoveredLoginButton && (
-          <p className="text-xs" style={{ color: COLORS.TEXT }}>
-            <i>
-              After Google login, Chrome may block the final step. <br></br>
-              Click the address bar, press ENTER, then return to the extension.
-            </i>
-          </p>
-        )}
       </div>
 
       <div className="text-center w-full px-8" style={{ color: COLORS.TEXT }}>
