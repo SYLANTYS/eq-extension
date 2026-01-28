@@ -271,7 +271,7 @@ const Controls = forwardRef(function Controls(
       const gaindB = nodeGainValues[draggingNode] ?? 0;
       const Q = isShelf
         ? baseQ
-        : baseQ * (Q_MULTIPLIER - Math.abs(gaindB) / 30);
+        : baseQ * Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gaindB)) / 30);
 
       // Update parent state via callback with both baseQ and new Q value
       const newBaseQValues = {
@@ -309,7 +309,9 @@ const Controls = forwardRef(function Controls(
     const baseQ =
       nodeBaseQValues[draggingNode] ??
       (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
-    const Q = isShelf ? baseQ : baseQ * (Q_MULTIPLIER - Math.abs(gaindB) / 30);
+    const Q = isShelf
+      ? baseQ
+      : baseQ * Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gaindB)) / 30);
 
     // Update parent state via callback
     const newPositions = {

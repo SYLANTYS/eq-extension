@@ -57,9 +57,11 @@ export function generateBellCurve(
     nodeBaseQValues[index] ?? (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
 
   // Dynamic Q calculation varies by filter type:
-  // Peaking: As gain deviates from 0 to ±30, Q scales from 150% to 50% of baseQ
-  //   At 0 dB: Q = Q_MULTIPLIER × baseQ, At ±30 dB: Q = 0.5 × baseQ
-  const Q = isShelf ? baseQ : baseQ * (Q_MULTIPLIER - Math.abs(gainDb) / 30);
+  // Peaking: As gain deviates from 0 to ±30, Q multiplies/divides by Q_MULTIPLIER
+  //   At 0 dB: Q = Q_MULTIPLIER × baseQ, At ±30 dB: Q = baseQ / Q_MULTIPLIER
+  const Q = isShelf
+    ? baseQ
+    : baseQ * Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gainDb)) / 30);
 
   // RBJ filter coefficients (from Audio EQ Cookbook)
   const w0 = (2 * Math.PI * centerFreq) / sampleRate;

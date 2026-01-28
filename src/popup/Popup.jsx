@@ -160,7 +160,7 @@ export default function Popup() {
         const gain = nodeGainValues[i] ?? 0;
         recalculatedQValues[i] = isShelf
           ? baseQ
-          : baseQ * (Q_MULTIPLIER - Math.abs(gain) / 30);
+          : baseQ * Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gain)) / 30);
       }
 
       await sendMessage({
@@ -542,26 +542,29 @@ export default function Popup() {
   }
 
   // Helper function to convert baseQ to Q
-  // Formula: Q = isShelf ? baseQ : baseQ * (Q_MULTIPLIER - Math.abs(gaindB) / 30)
+  // Formula: Q = isShelf ? baseQ : baseQ * Math.pow(Q_MULTIPLIER, 1 - 2 * Math.abs(gaindB) / 30)
   function baseQToQ(index, baseQ, gaindB) {
     const isShelf = index === 2 || index === 12;
     if (isShelf) {
       return baseQ; // For shelves, Q and baseQ are the same
     } else {
-      const multiplier = Q_MULTIPLIER - Math.abs(gaindB) / 30;
+      const multiplier = Math.pow(
+        Q_MULTIPLIER,
+        1 - (2 * Math.abs(gaindB)) / 30,
+      );
       return baseQ * multiplier;
     }
   }
 
   // Helper function to convert Q back to baseQ
-  // Formula: Q = isShelf ? baseQ : baseQ * (Q_MULTIPLIER - Math.abs(gaindB) / 30)
-  // Reverse: baseQ = Q / (Q_MULTIPLIER - Math.abs(gaindB) / 30)
+  // Formula: Q = isShelf ? baseQ : baseQ * Math.pow(Q_MULTIPLIER, 1 - 2 * Math.abs(gaindB) / 30)
+  // Reverse: baseQ = Q / Math.pow(Q_MULTIPLIER, 1 - 2 * Math.abs(gaindB) / 30)
   function qToBaseQ(index, q, gaindB) {
     const isShelf = index === 2 || index === 12;
     if (isShelf) {
       return q; // For shelves, Q and baseQ are the same
     } else {
-      const divisor = Q_MULTIPLIER - Math.abs(gaindB) / 30;
+      const divisor = Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gaindB)) / 30);
       return divisor !== 0 ? q / divisor : DEFAULT_PEAKING_Q; // Fallback to default
     }
   }
