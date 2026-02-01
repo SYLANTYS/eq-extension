@@ -501,7 +501,7 @@ const Controls = forwardRef(function Controls(
         </button>
 
         {/* Master volume slider */}
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center select-none">
           <div className="text-xs mb-2 select-none">volume</div>
           <div
             className="h-60 w-px rounded relative"

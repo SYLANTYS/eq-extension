@@ -32,7 +32,7 @@ export default function Guide({ themes = [], themeIndex = 0 }) {
           and how your EQ has changed it. Lower sounds appear to the left and
           higher to the right (with volume indicated by the height of a peak).{" "}
           <a
-            href="https://www.youtube.com/watch?v=VMnkYTan5pY"
+            href="https://www.youtube.com/watch?v=pRb94_-Ul28"
             rel="noreferrer noopener"
             target="_blank"
           >
