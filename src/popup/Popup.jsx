@@ -16,9 +16,9 @@ import {
 } from "../lib/eqStateUtils.js";
 import { useBackendSync } from "./hooks/useBackendSync.js";
 import { useTheme } from "./hooks/useTheme.js";
+import { useVolumeControl } from "./hooks/useVolumeControl.js";
 
 export default function Popup() {
-  const [volume, setVolumeState] = useState(1);
   const [eqActive, setEqActive] = useState(true);
   const [currentTabId, setCurrentTabId] = useState(null);
   const [activeTab, setActiveTab] = useState("Controls");
@@ -52,39 +52,11 @@ export default function Popup() {
     nodeBaseQValues,
   );
 
-  // Handles volume slider mouse down event (with throttled backend ensure).
-  function handleVolumeStart(e) {
-    throttledEnsureBackend();
-
-    const rect = e.currentTarget.getBoundingClientRect();
-
-    function move(ev) {
-      const y = ev.clientY - rect.top + 3;
-      const ratio = 1 - Math.min(Math.max(y / rect.height, 0), 1);
-
-      // Map ratio [0, 1] to dB [-30, 10]
-      // At ratio=0 (bottom): gain=0
-      // At ratio=0.75 (3/4 up): gain=1 (0dB)
-      // At ratio=1 (top): gain≈3.162 (+10dB)
-      let gain;
-      if (ratio === 0) {
-        gain = 0;
-      } else {
-        const db = -30 + ratio * 40;
-        gain = Math.pow(10, db / 20);
-      }
-
-      setVolumeState(gain); // slight offset for better UX
-      setVolume(gain);
-    }
-
-    window.addEventListener("mousemove", move);
-    window.addEventListener(
-      "mouseup",
-      () => window.removeEventListener("mousemove", move),
-      { once: true },
-    );
-  }
+  // Volume control hook
+  const { volume, setVolumeState, handleVolumeStart } = useVolumeControl(
+    currentTabId,
+    throttledEnsureBackend,
+  );
 
   // Starts EQ processing for the active tab.
   async function startEq() {
@@ -126,15 +98,6 @@ export default function Popup() {
   async function handleStartEqAndReset() {
     await startEq();
     await handleResetFilters();
-  }
-
-  // Sets the master volume in the offscreen audio context.
-  async function setVolume(value) {
-    await sendMessage({
-      type: MSG.SET_VOLUME,
-      value,
-      tabId: currentTabId,
-    });
   }
 
   // Load presets from localStorage on mount
