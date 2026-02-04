@@ -4,12 +4,7 @@ import Guide from "./components/Guide";
 import ActiveTabs from "./components/ActiveTabs";
 import Pro from "./components/Pro";
 
-import {
-  Q_MULTIPLIER,
-  DEFAULT_PEAKING_Q,
-  DEFAULT_SHELF_Q,
-  calculateBaseQValues,
-} from "../lib/qCalculations.js";
+import { calculateBaseQValues } from "../lib/qCalculations.js";
 import { sendMessage, MSG } from "../lib/chromeMessaging.js";
 import {
   loadEqStateFromLocalStorage,
@@ -19,6 +14,7 @@ import {
   applyEqState,
   getDefaultEqValues,
 } from "../lib/eqStateUtils.js";
+import { useBackendSync } from "./hooks/useBackendSync.js";
 
 // Theme definitions - add new themes as additional objects
 const THEMES = [
@@ -105,55 +101,13 @@ export default function Popup() {
   // Spectrum Visualizer State
   const [spectrumData, setSpectrumData] = useState([]);
 
-  // Ensure background and offscreen are ready by pinging BG and reinitializing missing audio.
-  // Call this before critical operations to guarantee service worker and offscreen are alive.
-  async function ensureBackendReady() {
-    // Ping background until it's ready
-    for (let i = 0; i < 40; i++) {
-      const ping = await sendMessage({ type: MSG.PING_BG });
-      if (ping?.ok) break;
-      await new Promise((r) => setTimeout(r, 50));
-    }
-
-    // Reinitialize any missing audio graphs in offscreen
-    await sendMessage({ type: MSG.REINIT_MISSING_AUDIO });
-
-    // Rehydrate Web Audio API with current UI state (fallback if no saved state)
-    if (currentTabId && Object.keys(nodeGainValues).length > 0) {
-      // Recalculate Q values from baseQ and current gains before sending
-      const recalculatedQValues = {};
-      for (let i = 0; i < 13; i++) {
-        const isShelf = i === 2 || i === 12;
-        const baseQ =
-          nodeBaseQValues[i] ?? (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
-        const gain = nodeGainValues[i] ?? 0;
-        recalculatedQValues[i] = isShelf
-          ? baseQ
-          : baseQ * Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gain)) / 30);
-      }
-
-      await sendMessage({
-        type: MSG.UPDATE_EQ_NODES,
-        tabId: currentTabId,
-        nodeGainValues,
-        nodeFrequencyValues,
-        nodeQValues: recalculatedQValues,
-      });
-    }
-  }
-
-  // Throttle tracking for ensuring backend is ready (1 second cooldown)
-  const lastEnsureTimeRef = useRef(0);
-
-  // Throttled ensure backend ready with 1 second cooldown
-  async function throttledEnsureBackend() {
-    const now = Date.now();
-    if (now - lastEnsureTimeRef.current < 1000) {
-      return; // Skip if called within last 1 second
-    }
-    lastEnsureTimeRef.current = now;
-    await ensureBackendReady();
-  }
+  // Backend synchronization hook
+  const { ensureBackendReady, throttledEnsureBackend } = useBackendSync(
+    currentTabId,
+    nodeGainValues,
+    nodeFrequencyValues,
+    nodeBaseQValues,
+  );
 
   // Handles volume slider mouse down event (with throttled backend ensure).
   function handleVolumeStart(e) {
