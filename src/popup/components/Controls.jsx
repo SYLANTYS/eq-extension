@@ -14,6 +14,7 @@ import {
   isShelfFilter,
   FREQUENCIES,
 } from "../../lib/qCalculations.js";
+import { sendMessage, MSG } from "../../lib/chromeMessaging.js";
 
 /**
  * Controls Component - Interactive EQ Visualizer
@@ -106,35 +107,17 @@ const Controls = forwardRef(function Controls(
 
     // Call backend ping and reinit via sendMessage
     try {
-      await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: "PING_BG" }, (res) => {
-          const err = chrome.runtime.lastError;
-          resolve(err ? { ok: false } : (res ?? { ok: true }));
-        });
-      });
+      await sendMessage({ type: MSG.PING_BG });
 
-      await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: "REINIT_MISSING_AUDIO" }, (res) => {
-          const err = chrome.runtime.lastError;
-          resolve(err ? { ok: false } : (res ?? { ok: true }));
-        });
-      });
+      await sendMessage({ type: MSG.REINIT_MISSING_AUDIO });
 
       // Rehydrate Web Audio API with current UI state
       if (Object.keys(nodeGainValues).length > 0) {
-        await new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            {
-              type: "UPDATE_EQ_NODES",
-              nodeGainValues,
-              nodeFrequencyValues,
-              nodeQValues,
-            },
-            (res) => {
-              const err = chrome.runtime.lastError;
-              resolve(err ? { ok: false } : (res ?? { ok: true }));
-            },
-          );
+        await sendMessage({
+          type: MSG.UPDATE_EQ_NODES,
+          nodeGainValues,
+          nodeFrequencyValues,
+          nodeQValues,
         });
       }
     } catch (e) {

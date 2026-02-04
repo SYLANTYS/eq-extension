@@ -14,6 +14,7 @@ import {
   isShelfFilter,
   FREQUENCIES,
 } from "../lib/qCalculations.js";
+import { sendMessage, MSG } from "../lib/chromeMessaging.js";
 
 // Theme definitions - add new themes as additional objects
 const THEMES = [
@@ -100,17 +101,6 @@ export default function Popup() {
   // Spectrum Visualizer State
   const [spectrumData, setSpectrumData] = useState([]);
 
-  // Sends a message to the background script and awaits a response.
-  function sendMessage(msg) {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage(msg, (res) => {
-        const err = chrome.runtime.lastError;
-        if (err) return resolve({ ok: false, error: err.message });
-        resolve(res ?? { ok: true });
-      });
-    });
-  }
-
   // Save current EQ node state to localStorage
   // Used for persistence after offscreen restarts
   function saveEqStateToLocalStorage(positions, gains, freqs, qs, baseQs) {
@@ -147,13 +137,13 @@ export default function Popup() {
   async function ensureBackendReady() {
     // Ping background until it's ready
     for (let i = 0; i < 40; i++) {
-      const ping = await sendMessage({ type: "PING_BG" });
+      const ping = await sendMessage({ type: MSG.PING_BG });
       if (ping?.ok) break;
       await new Promise((r) => setTimeout(r, 50));
     }
 
     // Reinitialize any missing audio graphs in offscreen
-    await sendMessage({ type: "REINIT_MISSING_AUDIO" });
+    await sendMessage({ type: MSG.REINIT_MISSING_AUDIO });
 
     // Rehydrate Web Audio API with current UI state (fallback if no saved state)
     if (currentTabId && Object.keys(nodeGainValues).length > 0) {
@@ -170,7 +160,7 @@ export default function Popup() {
       }
 
       await sendMessage({
-        type: "UPDATE_EQ_NODES",
+        type: MSG.UPDATE_EQ_NODES,
         tabId: currentTabId,
         nodeGainValues,
         nodeFrequencyValues,
@@ -268,7 +258,7 @@ export default function Popup() {
 
   // Starts EQ processing for the active tab.
   async function startEq() {
-    const res = await sendMessage({ type: "START_EQ", tabId: currentTabId });
+    const res = await sendMessage({ type: MSG.START_EQ, tabId: currentTabId });
     if (res?.ok) {
       setEqActive(true);
       setVolumeState(1);
@@ -283,7 +273,7 @@ export default function Popup() {
 
   // Stops EQ processing for the active tab.
   async function stopEq() {
-    const res = await sendMessage({ type: "STOP_EQ", tabId: currentTabId });
+    const res = await sendMessage({ type: MSG.STOP_EQ, tabId: currentTabId });
     if (res?.ok) {
       setEqActive(false);
       setVolumeState(1);
@@ -311,7 +301,7 @@ export default function Popup() {
   // Sets the master volume in the offscreen audio context.
   async function setVolume(value) {
     await sendMessage({
-      type: "SET_VOLUME",
+      type: MSG.SET_VOLUME,
       value,
       tabId: currentTabId,
     });
@@ -410,7 +400,7 @@ export default function Popup() {
     // Sync to Web Audio API
     if (currentTabId) {
       await sendMessage({
-        type: "UPDATE_EQ_NODES",
+        type: MSG.UPDATE_EQ_NODES,
         tabId: currentTabId,
         nodeGainValues: completeGainValues,
         nodeFrequencyValues: completeFreqValues,
@@ -458,7 +448,7 @@ export default function Popup() {
     // Sync to Web Audio API
     if (currentTabId) {
       await sendMessage({
-        type: "UPDATE_EQ_NODES",
+        type: MSG.UPDATE_EQ_NODES,
         tabId: currentTabId,
         nodeGainValues: completeGainValues,
         nodeFrequencyValues: completeFreqValues,
@@ -496,7 +486,7 @@ export default function Popup() {
       }
 
       await sendMessage({
-        type: "UPDATE_EQ_NODES",
+        type: MSG.UPDATE_EQ_NODES,
         tabId: currentTabId,
         nodeGainValues: defaultGainValues,
         nodeFrequencyValues: defaultFreqValues,
@@ -532,7 +522,7 @@ export default function Popup() {
     // Sync to Web Audio API via background
     if (currentTabId) {
       await sendMessage({
-        type: "UPDATE_EQ_NODES",
+        type: MSG.UPDATE_EQ_NODES,
         tabId: currentTabId,
         nodeGainValues: newGainValues,
         nodeFrequencyValues: newFrequencyValues,
@@ -641,7 +631,7 @@ export default function Popup() {
 
       // Get the current volume for this tab
       const volumeStatus = await sendMessage({
-        type: "GET_VOLUME",
+        type: MSG.GET_VOLUME,
         tabId: tab.id,
       });
 
@@ -657,7 +647,7 @@ export default function Popup() {
       if (cancelled) return;
 
       const status = await sendMessage({
-        type: "GET_EQ_STATUS",
+        type: MSG.GET_EQ_STATUS,
         tabId: tab.id,
       });
 
@@ -670,7 +660,7 @@ export default function Popup() {
       // Check if we need to START_EQ
       if (!status?.active) {
         // Auto-start EQ for this tab if not already active
-        const res = await sendMessage({ type: "START_EQ", tabId: tab.id });
+        const res = await sendMessage({ type: MSG.START_EQ, tabId: tab.id });
         if (res?.ok) setEqActive(true);
 
         if (cancelled) return;
@@ -683,7 +673,7 @@ export default function Popup() {
       let webAudioState = null;
       try {
         const eqNodeStatus = await sendMessage({
-          type: "GET_EQ_NODES",
+          type: MSG.GET_EQ_NODES,
           tabId: tab.id,
         });
 
@@ -735,7 +725,7 @@ export default function Popup() {
               "[Popup] Syncing localStorage state to Web Audio API...",
             );
             await sendMessage({
-              type: "UPDATE_EQ_NODES",
+              type: MSG.UPDATE_EQ_NODES,
               tabId: tab.id,
               nodeGainValues: savedGains,
               nodeFrequencyValues: savedFreqs,
@@ -763,7 +753,7 @@ export default function Popup() {
     async function fetchSpectrum() {
       try {
         const res = await sendMessage({
-          type: "GET_SPECTRUM_DATA",
+          type: MSG.GET_SPECTRUM_DATA,
           tabId: currentTabId,
         });
 

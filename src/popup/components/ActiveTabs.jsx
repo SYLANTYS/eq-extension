@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { sendMessage, MSG } from "../../lib/chromeMessaging.js";
 
 export default function ActiveTabs({ themes = [], themeIndex = 0 }) {
   const COLORS = themes[themeIndex] || {};
@@ -6,23 +7,12 @@ export default function ActiveTabs({ themes = [], themeIndex = 0 }) {
   const [loading, setLoading] = useState(true);
   const [hoveredTabId, setHoveredTabId] = useState(null);
 
-  // Sends a message to the background script and awaits a response.
-  function sendMessage(msg) {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage(msg, (res) => {
-        const err = chrome.runtime.lastError;
-        if (err) return resolve({ ok: false, error: err.message });
-        resolve(res ?? { ok: true });
-      });
-    });
-  }
-
   // Fetch all active tabs and their details
   async function loadActiveTabs() {
     try {
       setLoading(true);
       // Get all tab IDs with active EQ
-      const res = await sendMessage({ type: "GET_ALL_ACTIVE_TABS" });
+      const res = await sendMessage({ type: MSG.GET_ALL_ACTIVE_TABS });
       if (!res?.ok || !res?.tabIds) return;
 
       // Fetch full tab details for each active tab
@@ -46,7 +36,7 @@ export default function ActiveTabs({ themes = [], themeIndex = 0 }) {
 
   // Stop EQ for a specific tab
   async function handleStopEq(tabId) {
-    await sendMessage({ type: "STOP_EQ", tabId });
+    await sendMessage({ type: MSG.STOP_EQ, tabId });
     // Remove from list
     setActiveTabs((prev) => prev.filter((tab) => tab.id !== tabId));
   }
