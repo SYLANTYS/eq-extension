@@ -7,7 +7,6 @@ import Pro from "./components/Pro";
 import { calculateBaseQValues } from "../lib/qCalculations.js";
 import { sendMessage, MSG } from "../lib/chromeMessaging.js";
 import {
-  loadEqStateFromLocalStorage,
   clearEqStateFromLocalStorage,
   buildCompleteEqValues,
   calculateNodePositions,
@@ -18,10 +17,9 @@ import { useBackendSync } from "./hooks/useBackendSync.js";
 import { useTheme } from "./hooks/useTheme.js";
 import { useVolumeControl } from "./hooks/useVolumeControl.js";
 import { useSpectrumData } from "./hooks/useSpectrumData.js";
+import { usePopupBootstrap } from "./hooks/usePopupBootstrap.js";
 
 export default function Popup() {
-  const [eqActive, setEqActive] = useState(true);
-  const [currentTabId, setCurrentTabId] = useState(null);
   const [activeTab, setActiveTab] = useState("Controls");
   const [hoveredTab, setHoveredTab] = useState(null);
   const [hoveredButton, setHoveredButton] = useState(null);
@@ -42,18 +40,75 @@ export default function Popup() {
   const [savedPresets, setSavedPresets] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState(null);
 
-  // Backend synchronization hook
+  // Initialize EQ state from gain/frequency/Q values
+  // Calculates positions, baseQ values, and updates all state
+  function initializeEqState(gainValues, freqValues, qValues) {
+    // Calculate node positions from frequency/gain values
+    const positions = calculateNodePositions(freqValues, gainValues);
+
+    // Convert Q values back to baseQ
+    const baseQValues = calculateBaseQValues(qValues, gainValues);
+
+    // Update all state
+    setNodePositions(positions);
+    setNodeGainValues(gainValues);
+    setNodeFrequencyValues(freqValues);
+    setNodeQValues(qValues);
+    setNodeBaseQValues(baseQValues);
+  }
+
+  // Callback for bootstrap hook to set EQ state from localStorage
+  function setEqStateFromLocalStorage(savedState, tabId) {
+    const {
+      nodePositions: savedPositions,
+      nodeGainValues: savedGains,
+      nodeFrequencyValues: savedFreqs,
+      nodeQValues: savedQs,
+      nodeBaseQValues: savedBaseQs,
+    } = savedState;
+    setNodePositions(savedPositions);
+    setNodeGainValues(savedGains);
+    setNodeFrequencyValues(savedFreqs);
+    setNodeQValues(savedQs);
+    setNodeBaseQValues(savedBaseQs);
+    console.log("[Popup] Falling back to localStorage for EQ state");
+
+    // Sync localStorage state to Web Audio API
+    if (Object.keys(savedGains).length > 0) {
+      console.log("[Popup] Syncing localStorage state to Web Audio API...");
+      sendMessage({
+        type: MSG.UPDATE_EQ_NODES,
+        tabId: tabId,
+        nodeGainValues: savedGains,
+        nodeFrequencyValues: savedFreqs,
+        nodeQValues: savedQs,
+      });
+      console.log("[Popup] localStorage state synced to Web Audio API");
+    }
+  }
+
+  // Backend synchronization hook (needs nodeGainValues etc for sync)
   const { ensureBackendReady, throttledEnsureBackend } = useBackendSync(
-    currentTabId,
+    null, // currentTabId not available yet, will use from bootstrap
     nodeGainValues,
     nodeFrequencyValues,
     nodeBaseQValues,
   );
 
-  // Volume control hook
-  const { volume, setVolumeState, handleVolumeStart } = useVolumeControl(
+  // Bootstrap hook - handles tab detection, volume, backend init, EQ status
+  // NOTE: setVolumeState is passed as callback, not called with currentTabId
+  const { currentTabId, eqActive, setEqActive, volume, setVolumeState } =
+    usePopupBootstrap(
+      ensureBackendReady,
+      initializeEqState,
+      setEqStateFromLocalStorage,
+    );
+
+  // Volume control hook - needs currentTabId from bootstrap
+  const { handleVolumeStart } = useVolumeControl(
     currentTabId,
     throttledEnsureBackend,
+    setVolumeState,
   );
 
   // Spectrum data hook
@@ -273,155 +328,6 @@ export default function Popup() {
       newPositions,
     );
   }
-
-  // Q calculation functions are now imported from qCalculations.js
-
-  // Initialize EQ state from gain/frequency/Q values
-  // Calculates positions, baseQ values, and updates all state
-  function initializeEqState(gainValues, freqValues, qValues) {
-    // Calculate node positions from frequency/gain values
-    const positions = calculateNodePositions(freqValues, gainValues);
-
-    // Convert Q values back to baseQ
-    const baseQValues = calculateBaseQValues(qValues, gainValues);
-
-    // Update all state
-    setNodePositions(positions);
-    setNodeGainValues(gainValues);
-    setNodeFrequencyValues(freqValues);
-    setNodeQValues(qValues);
-    setNodeBaseQValues(baseQValues);
-  }
-
-  // On mount, ensure backend is ready and check if EQ is already active for this tab.
-  useEffect(() => {
-    let cancelled = false;
-
-    async function boot() {
-      // Get the current active tab
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-
-      if (cancelled || !tab?.id) return;
-
-      setCurrentTabId(tab.id);
-
-      // Get the current volume for this tab
-      const volumeStatus = await sendMessage({
-        type: MSG.GET_VOLUME,
-        tabId: tab.id,
-      });
-
-      if (volumeStatus?.ok && volumeStatus?.gain) {
-        setVolumeState(volumeStatus.gain);
-      }
-
-      if (cancelled) return;
-
-      // Ensure backend is ready FIRST before fetching from Web Audio API
-      await ensureBackendReady();
-
-      if (cancelled) return;
-
-      const status = await sendMessage({
-        type: MSG.GET_EQ_STATUS,
-        tabId: tab.id,
-      });
-
-      if (status?.active) {
-        setEqActive(true);
-      }
-
-      if (cancelled) return;
-
-      // Check if we need to START_EQ
-      if (!status?.active) {
-        // Auto-start EQ for this tab if not already active
-        const res = await sendMessage({ type: MSG.START_EQ, tabId: tab.id });
-        if (res?.ok) setEqActive(true);
-
-        if (cancelled) return;
-
-        // Give offscreen time to initialize audio graphs
-        await new Promise((r) => setTimeout(r, 150));
-      }
-
-      // PRIMARY: Fetch current EQ state from Web Audio API (source of truth)
-      let webAudioState = null;
-      try {
-        const eqNodeStatus = await sendMessage({
-          type: MSG.GET_EQ_NODES,
-          tabId: tab.id,
-        });
-
-        if (eqNodeStatus?.ok) {
-          const gainValues = eqNodeStatus.nodeGainValues || {};
-          const freqValues = eqNodeStatus.nodeFrequencyValues || {};
-          const qValues = eqNodeStatus.nodeQValues || {};
-
-          // If Web Audio API has values, use them as source of truth
-          if (Object.keys(gainValues).length > 0) {
-            webAudioState = {
-              gainValues,
-              freqValues,
-              qValues,
-            };
-            initializeEqState(gainValues, freqValues, qValues);
-            console.log(
-              "[Popup] Web Audio API has EQ state, using it as source of truth",
-            );
-          }
-        }
-      } catch (e) {
-        console.warn("[Popup] Failed to fetch EQ state from Web Audio API:", e);
-      }
-
-      if (cancelled) return;
-
-      // FALLBACK: If Web Audio API had no state, load from localStorage
-      if (!webAudioState) {
-        const savedState = loadEqStateFromLocalStorage();
-        if (savedState) {
-          const {
-            nodePositions: savedPositions,
-            nodeGainValues: savedGains,
-            nodeFrequencyValues: savedFreqs,
-            nodeQValues: savedQs,
-            nodeBaseQValues: savedBaseQs,
-          } = savedState;
-          setNodePositions(savedPositions);
-          setNodeGainValues(savedGains);
-          setNodeFrequencyValues(savedFreqs);
-          setNodeQValues(savedQs);
-          setNodeBaseQValues(savedBaseQs);
-          console.log("[Popup] Falling back to localStorage for EQ state");
-
-          // Sync localStorage state to Web Audio API
-          if (Object.keys(savedGains).length > 0) {
-            console.log(
-              "[Popup] Syncing localStorage state to Web Audio API...",
-            );
-            await sendMessage({
-              type: MSG.UPDATE_EQ_NODES,
-              tabId: tab.id,
-              nodeGainValues: savedGains,
-              nodeFrequencyValues: savedFreqs,
-              nodeQValues: savedQs,
-            });
-            console.log("[Popup] localStorage state synced to Web Audio API");
-          }
-        }
-      }
-    }
-
-    boot();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   return (
     <div

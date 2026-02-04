@@ -1,31 +1,20 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { sendMessage, MSG } from "../../lib/chromeMessaging.js";
 
 /**
- * Hook for managing volume state and slider interaction.
+ * Hook for managing volume slider interaction.
  * @param {number|null} currentTabId - The current tab ID
  * @param {function} throttledEnsureBackend - Throttled backend ready function
+ * @param {function} setVolumeState - Volume state setter from bootstrap hook
  * @returns {{
- *   volume: number,
- *   setVolume: function,
  *   handleVolumeStart: function
  * }}
  */
-export function useVolumeControl(currentTabId, throttledEnsureBackend) {
-  const [volume, setVolumeState] = useState(1);
-
-  // Sets the master volume in the offscreen audio context.
-  const setVolume = useCallback(
-    async (value) => {
-      await sendMessage({
-        type: MSG.SET_VOLUME,
-        value,
-        tabId: currentTabId,
-      });
-    },
-    [currentTabId],
-  );
-
+export function useVolumeControl(
+  currentTabId,
+  throttledEnsureBackend,
+  setVolumeState,
+) {
   // Handles volume slider mouse down event (with throttled backend ensure).
   const handleVolumeStart = useCallback(
     (e) => {
@@ -65,13 +54,10 @@ export function useVolumeControl(currentTabId, throttledEnsureBackend) {
         { once: true },
       );
     },
-    [currentTabId, throttledEnsureBackend],
+    [currentTabId, throttledEnsureBackend, setVolumeState],
   );
 
   return {
-    volume,
-    setVolumeState,
-    setVolume,
     handleVolumeStart,
   };
 }
