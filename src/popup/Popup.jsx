@@ -17,6 +17,7 @@ import {
 import { useBackendSync } from "./hooks/useBackendSync.js";
 import { useTheme } from "./hooks/useTheme.js";
 import { useVolumeControl } from "./hooks/useVolumeControl.js";
+import { useSpectrumData } from "./hooks/useSpectrumData.js";
 
 export default function Popup() {
   const [eqActive, setEqActive] = useState(true);
@@ -41,9 +42,6 @@ export default function Popup() {
   const [savedPresets, setSavedPresets] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState(null);
 
-  // Spectrum Visualizer State
-  const [spectrumData, setSpectrumData] = useState([]);
-
   // Backend synchronization hook
   const { ensureBackendReady, throttledEnsureBackend } = useBackendSync(
     currentTabId,
@@ -57,6 +55,9 @@ export default function Popup() {
     currentTabId,
     throttledEnsureBackend,
   );
+
+  // Spectrum data hook
+  const spectrumData = useSpectrumData(eqActive, currentTabId);
 
   // Starts EQ processing for the active tab.
   async function startEq() {
@@ -421,38 +422,6 @@ export default function Popup() {
       cancelled = true;
     };
   }, []);
-
-  // Fetch spectrum data continuously when EQ is active
-  useEffect(() => {
-    if (!eqActive || !currentTabId) return;
-
-    let animationFrameId;
-
-    async function fetchSpectrum() {
-      try {
-        const res = await sendMessage({
-          type: MSG.GET_SPECTRUM_DATA,
-          tabId: currentTabId,
-        });
-
-        if (res?.ok && res?.spectrumData) {
-          setSpectrumData(res.spectrumData);
-        }
-      } catch (e) {
-        console.warn("[Popup] Failed to fetch spectrum data:", e);
-      }
-
-      // Schedule next fetch for next animation frame
-      animationFrameId = requestAnimationFrame(fetchSpectrum);
-    }
-
-    // Start fetching spectrum data
-    fetchSpectrum();
-
-    return () => {
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-    };
-  }, [eqActive, currentTabId]);
 
   return (
     <div
