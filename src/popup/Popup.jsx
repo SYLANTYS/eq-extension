@@ -8,13 +8,17 @@ import {
   Q_MULTIPLIER,
   DEFAULT_PEAKING_Q,
   DEFAULT_SHELF_Q,
-  baseQToQ,
-  qToBaseQ,
-  calculateQ,
-  isShelfFilter,
-  FREQUENCIES,
+  calculateBaseQValues,
 } from "../lib/qCalculations.js";
 import { sendMessage, MSG } from "../lib/chromeMessaging.js";
+import {
+  loadEqStateFromLocalStorage,
+  clearEqStateFromLocalStorage,
+  buildCompleteEqValues,
+  calculateNodePositions,
+  applyEqState,
+  getDefaultEqValues,
+} from "../lib/eqStateUtils.js";
 
 // Theme definitions - add new themes as additional objects
 const THEMES = [
@@ -101,37 +105,6 @@ export default function Popup() {
   // Spectrum Visualizer State
   const [spectrumData, setSpectrumData] = useState([]);
 
-  // Save current EQ node state to localStorage
-  // Used for persistence after offscreen restarts
-  function saveEqStateToLocalStorage(positions, gains, freqs, qs, baseQs) {
-    const eqState = {
-      nodePositions: positions,
-      nodeGainValues: gains,
-      nodeFrequencyValues: freqs,
-      nodeQValues: qs,
-      nodeBaseQValues: baseQs,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem("eqCurrentState", JSON.stringify(eqState));
-    console.log("[Popup] EQ state saved to localStorage");
-  }
-
-  // Load EQ node state from localStorage
-  // Returns null if no saved state exists
-  function loadEqStateFromLocalStorage() {
-    try {
-      const stored = localStorage.getItem("eqCurrentState");
-      if (stored) {
-        const eqState = JSON.parse(stored);
-        console.log("[Popup] EQ state loaded from localStorage");
-        return eqState;
-      }
-    } catch (e) {
-      console.warn("[Popup] Failed to load EQ state from localStorage:", e);
-    }
-    return null;
-  }
-
   // Ensure background and offscreen are ready by pinging BG and reinitializing missing audio.
   // Call this before critical operations to guarantee service worker and offscreen are alive.
   async function ensureBackendReady() {
@@ -171,46 +144,6 @@ export default function Popup() {
 
   // Throttle tracking for ensuring backend is ready (1 second cooldown)
   const lastEnsureTimeRef = useRef(0);
-
-  // Build complete EQ value objects with all indexes (defaults + overrides)
-  function buildCompleteEqValues(
-    overrideGainValues = {},
-    overrideFreqValues = {},
-    overrideBaseQValues = {},
-  ) {
-    const completeGainValues = {};
-    const completeFreqValues = {};
-    const completeBaseQValues = {};
-    const completeQValues = {};
-
-    // Set all indexes to defaults first
-    for (let i = 0; i < FREQUENCIES.length; i++) {
-      completeGainValues[i] = 0; // 0 dB default
-      completeFreqValues[i] = FREQUENCIES[i];
-      // Default baseQ values: shelf Q for shelves, peaking Q for mid-range
-      completeBaseQValues[i] =
-        i === 2 || i === 12 ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q;
-    }
-
-    // Override with provided values
-    Object.assign(completeGainValues, overrideGainValues);
-    Object.assign(completeFreqValues, overrideFreqValues);
-    Object.assign(completeBaseQValues, overrideBaseQValues);
-
-    // Calculate Q values from baseQ and gain (no unnecessary conversions)
-    for (let i = 0; i < FREQUENCIES.length; i++) {
-      const baseQ = completeBaseQValues[i];
-      const gain = completeGainValues[i];
-      completeQValues[i] = baseQToQ(i, baseQ, gain);
-    }
-
-    return {
-      completeGainValues,
-      completeFreqValues,
-      completeQValues,
-      completeBaseQValues,
-    };
-  }
 
   // Throttled ensure backend ready with 1 second cooldown
   async function throttledEnsureBackend() {
@@ -383,30 +316,14 @@ export default function Popup() {
     // Initialize UI state
     initializeEqState(completeGainValues, completeFreqValues, completeQValues);
 
-    // Save to localStorage for persistence after offscreen restarts
-    const positions = calculateNodePositions(
-      completeFreqValues,
-      completeGainValues,
-      FREQUENCIES,
-    );
-    saveEqStateToLocalStorage(
-      positions,
+    // Save to localStorage and sync to Web Audio API
+    await applyEqState(
+      currentTabId,
       completeGainValues,
       completeFreqValues,
       completeQValues,
       completeBaseQValues,
     );
-
-    // Sync to Web Audio API
-    if (currentTabId) {
-      await sendMessage({
-        type: MSG.UPDATE_EQ_NODES,
-        tabId: currentTabId,
-        nodeGainValues: completeGainValues,
-        nodeFrequencyValues: completeFreqValues,
-        nodeQValues: completeQValues,
-      });
-    }
   }
 
   // Load preset and apply it (resets all indexes to defaults, then applies preset)
@@ -431,30 +348,14 @@ export default function Popup() {
     // Initialize UI state with complete values
     initializeEqState(completeGainValues, completeFreqValues, completeQValues);
 
-    // Save to localStorage for persistence after offscreen restarts
-    const positions = calculateNodePositions(
-      completeFreqValues,
-      completeGainValues,
-      FREQUENCIES,
-    );
-    saveEqStateToLocalStorage(
-      positions,
+    // Save to localStorage and sync to Web Audio API
+    await applyEqState(
+      currentTabId,
       completeGainValues,
       completeFreqValues,
       completeQValues,
       completeBaseQValues,
     );
-
-    // Sync to Web Audio API
-    if (currentTabId) {
-      await sendMessage({
-        type: MSG.UPDATE_EQ_NODES,
-        tabId: currentTabId,
-        nodeGainValues: completeGainValues,
-        nodeFrequencyValues: completeFreqValues,
-        nodeQValues: completeQValues,
-      });
-    }
   }
 
   // Resets all EQ filters to default values and clears preset selection
@@ -469,28 +370,19 @@ export default function Popup() {
     setPresetName("");
 
     // Clear saved EQ state from localStorage
-    localStorage.removeItem("eqCurrentState");
+    clearEqStateFromLocalStorage();
 
     // Reset Web Audio API filters to defaults
     if (currentTabId) {
-      const defaultGainValues = {};
-      const defaultFreqValues = {};
-      const defaultQValues = {};
-
-      // Set all filters to their default values
-      for (let i = 0; i < FREQUENCIES.length; i++) {
-        defaultGainValues[i] = 0; // 0 dB (no boost/cut)
-        defaultFreqValues[i] = FREQUENCIES[i];
-        defaultQValues[i] =
-          i === 2 || i === 12 ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q; // Shelf Q vs peaking Q
-      }
+      const { completeGainValues, completeFreqValues, completeQValues } =
+        getDefaultEqValues();
 
       await sendMessage({
         type: MSG.UPDATE_EQ_NODES,
         tabId: currentTabId,
-        nodeGainValues: defaultGainValues,
-        nodeFrequencyValues: defaultFreqValues,
-        nodeQValues: defaultQValues,
+        nodeGainValues: completeGainValues,
+        nodeFrequencyValues: completeFreqValues,
+        nodeQValues: completeQValues,
       });
     }
   }
@@ -510,25 +402,15 @@ export default function Popup() {
     setNodeQValues(newQValues);
     setNodeBaseQValues(newBaseQValues);
 
-    // Save to localStorage for persistence after offscreen restarts
-    saveEqStateToLocalStorage(
-      newPositions,
+    // Save to localStorage and sync to Web Audio API
+    await applyEqState(
+      currentTabId,
       newGainValues,
       newFrequencyValues,
       newQValues,
       newBaseQValues,
+      newPositions,
     );
-
-    // Sync to Web Audio API via background
-    if (currentTabId) {
-      await sendMessage({
-        type: MSG.UPDATE_EQ_NODES,
-        tabId: currentTabId,
-        nodeGainValues: newGainValues,
-        nodeFrequencyValues: newFrequencyValues,
-        nodeQValues: newQValues,
-      });
-    }
   }
 
   // Q calculation functions are now imported from qCalculations.js
@@ -537,27 +419,10 @@ export default function Popup() {
   // Calculates positions, baseQ values, and updates all state
   function initializeEqState(gainValues, freqValues, qValues) {
     // Calculate node positions from frequency/gain values
-    const positions = calculateNodePositions(
-      freqValues,
-      gainValues,
-      FREQUENCIES,
-    );
+    const positions = calculateNodePositions(freqValues, gainValues);
 
     // Convert Q values back to baseQ
-    const baseQValues = {};
-    for (const indexStr in qValues) {
-      const index = parseInt(indexStr, 10);
-      const gain = gainValues[index] ?? 0;
-
-      // For unchanged nodes (gain = 0), use default baseQ directly
-      // For changed nodes, convert Q back to baseQ using the gain-dependent formula
-      if (gain === 0) {
-        baseQValues[index] =
-          index === 2 || index === 12 ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q;
-      } else {
-        baseQValues[index] = qToBaseQ(index, qValues[index], gain);
-      }
-    }
+    const baseQValues = calculateBaseQValues(qValues, gainValues);
 
     // Update all state
     setNodePositions(positions);
@@ -565,53 +430,6 @@ export default function Popup() {
     setNodeFrequencyValues(freqValues);
     setNodeQValues(qValues);
     setNodeBaseQValues(baseQValues);
-  }
-
-  // Convert node positions from Web Audio API values to UI coordinates
-  // This is used during initialization to populate node positions
-  function calculateNodePositions(
-    nodeFrequencyValues,
-    nodeGainValues,
-    frequencies,
-  ) {
-    const positions = {};
-    const SVG_HEIGHT = 500;
-    const CENTER_Y = 250;
-    const X_AXIS_START = 120;
-    const X_AXIS_END = 15;
-    const USABLE_WIDTH = 1000 - X_AXIS_START - X_AXIS_END;
-    const GEOMETRIC_RATIO = 1.2;
-
-    const maxIndex = frequencies.length - 1;
-
-    for (const indexStr in nodeFrequencyValues) {
-      const index = parseInt(indexStr, 10);
-      const freq = nodeFrequencyValues[index];
-      const gainDb = nodeGainValues[index] ?? 0;
-
-      // Calculate X offset based on frequency
-      const baseX =
-        X_AXIS_START +
-        (USABLE_WIDTH * (Math.pow(GEOMETRIC_RATIO, index) - 1)) /
-          (Math.pow(GEOMETRIC_RATIO, maxIndex) - 1);
-
-      // Reverse frequency mapping to get X position
-      const minFreq = frequencies[0];
-      const maxFreq = frequencies[frequencies.length - 1];
-      const logRatio = Math.log(freq / minFreq) / Math.log(maxFreq / minFreq);
-      const indexFloat = logRatio * maxIndex;
-      const denominator = Math.pow(GEOMETRIC_RATIO, maxIndex) - 1;
-      const normalizedX =
-        (Math.pow(GEOMETRIC_RATIO, indexFloat) - 1) / denominator;
-      const currentX = X_AXIS_START + normalizedX * USABLE_WIDTH;
-
-      const offsetX = currentX - baseX;
-      const offsetY = -(gainDb / 60) * SVG_HEIGHT;
-
-      positions[index] = { x: offsetX, y: offsetY };
-    }
-
-    return positions;
   }
 
   // On mount, ensure backend is ready and check if EQ is already active for this tab.

@@ -87,3 +87,32 @@ export function qToBaseQ(index, q, gainDb) {
 export function calculateQ(index, baseQ, gainDb) {
   return baseQToQ(index, baseQ, gainDb);
 }
+
+/**
+ * Convert Q values back to baseQ values for a set of nodes.
+ * Used when initializing UI state from Web Audio API values.
+ *
+ * @param {Object} qValues - Q values { [index]: Q }
+ * @param {Object} gainValues - Gain values { [index]: dB }
+ * @returns {Object} BaseQ values { [index]: baseQ }
+ */
+export function calculateBaseQValues(qValues, gainValues) {
+  const baseQValues = {};
+
+  for (const indexStr in qValues) {
+    const index = parseInt(indexStr, 10);
+    const gain = gainValues[index] ?? 0;
+
+    // For unchanged nodes (gain = 0), use default baseQ directly
+    // For changed nodes, convert Q back to baseQ using the gain-dependent formula
+    if (gain === 0) {
+      baseQValues[index] = isShelfFilter(index)
+        ? DEFAULT_SHELF_Q
+        : DEFAULT_PEAKING_Q;
+    } else {
+      baseQValues[index] = qToBaseQ(index, qValues[index], gain);
+    }
+  }
+
+  return baseQValues;
+}
