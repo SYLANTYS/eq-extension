@@ -1,7 +1,10 @@
-// Q-factor configuration constants (must match Popup.jsx and Controls.jsx)
-const Q_MULTIPLIER = 2.0; // Multiplier for gain-dependent Q calculation
-const DEFAULT_PEAKING_Q = 0.3; // Default Q for peaking filters
-const DEFAULT_SHELF_Q = 0.75; // Default Q for shelf filters
+import {
+  Q_MULTIPLIER,
+  DEFAULT_PEAKING_Q,
+  DEFAULT_SHELF_Q,
+  calculateQ,
+  isShelfFilter,
+} from "./qCalculations.js";
 
 /**
  * Generate SVG path for true parametric EQ filter response
@@ -50,18 +53,14 @@ export function generateBellCurve(
 
   // Compute amplitude and Q
   const A = Math.pow(10, gainDb / 40);
-  const isShelf = index === 2 || index === 12;
+  const isShelf = isShelfFilter(index);
 
-  // Peaking filters: baseQ default DEFAULT_PEAKING_Q, standard gain relationship
+  // Get baseQ from state or use default
   const baseQ =
     nodeBaseQValues[index] ?? (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
 
-  // Dynamic Q calculation varies by filter type:
-  // Peaking: As gain deviates from 0 to ±30, Q multiplies/divides by Q_MULTIPLIER
-  //   At 0 dB: Q = Q_MULTIPLIER × baseQ, At ±30 dB: Q = baseQ / Q_MULTIPLIER
-  const Q = isShelf
-    ? baseQ
-    : baseQ * Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gainDb)) / 30);
+  // Calculate Q using unified formula
+  const Q = calculateQ(index, baseQ, gainDb);
 
   // RBJ filter coefficients (from Audio EQ Cookbook)
   const w0 = (2 * Math.PI * centerFreq) / sampleRate;

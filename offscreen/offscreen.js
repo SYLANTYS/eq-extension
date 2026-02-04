@@ -5,22 +5,21 @@
 
 console.log("[OFFSCREEN] Offscreen audio script loaded");
 
-// Q-factor configuration constants (must match Popup.jsx and Controls.jsx)
-const Q_MULTIPLIER = 2.0; // Multiplier for gain-dependent Q calculation
-const DEFAULT_PEAKING_Q = 0.3; // Default Q for peaking filters
-const DEFAULT_SHELF_Q = 0.75; // Default Q for shelf filters
+// Import unified Q calculation functions
+import {
+  Q_MULTIPLIER,
+  DEFAULT_PEAKING_Q,
+  DEFAULT_SHELF_Q,
+  isShelfFilter,
+  FREQUENCIES,
+} from "../src/lib/qCalculations.js";
 
 // Map<tabId, { audioContext, sourceNode, gainNode, mediaStream, eqFilters, analyserNode }>
 // Stores isolated audio graphs, one per tab.
 // Multiple tabs can have active audio simultaneously.
-// eqFilters: array of 11 BiquadFilterNode instances (indices 2-12)
+// eqFilters: array of 13 BiquadFilterNode instances (indices 0-12)
 // analyserNode: analyser for real-time spectrum data
 const audioGraphs = new Map();
-
-// Standard frequency bands used in audio processing (must match Controls.jsx)
-const FREQUENCIES = [
-  5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
-];
 
 // Create EQ filter nodes for a given audio graph
 // Returns array of 13 biquad filters (indices 0-1 are transparent, 2-12 are interactive)

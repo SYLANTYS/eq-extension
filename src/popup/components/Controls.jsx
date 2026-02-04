@@ -5,12 +5,15 @@ import {
   useImperativeHandle,
   forwardRef,
 } from "react";
-import { generateBellCurve } from "./graphs";
-
-// Q-factor configuration constants (must match Popup.jsx)
-const Q_MULTIPLIER = 2.0; // Multiplier for gain-dependent Q calculation
-const DEFAULT_PEAKING_Q = 0.3; // Default Q for peaking filters
-const DEFAULT_SHELF_Q = 0.75; // Default Q for shelf filters
+import { generateBellCurve } from "../../lib/graphs.js";
+import {
+  Q_MULTIPLIER,
+  DEFAULT_PEAKING_Q,
+  DEFAULT_SHELF_Q,
+  calculateQ,
+  isShelfFilter,
+  FREQUENCIES,
+} from "../../lib/qCalculations.js";
 
 /**
  * Controls Component - Interactive EQ Visualizer
@@ -140,9 +143,7 @@ const Controls = forwardRef(function Controls(
   }
 
   // Standard frequency bands used in audio processing
-  const frequencies = [
-    5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
-  ];
+  const frequencies = FREQUENCIES;
 
   // SVG Coordinate System:
   // - Horizontal (X): 0-1000 units, 1Hz-21500Hz on log scale
@@ -267,11 +268,9 @@ const Controls = forwardRef(function Controls(
       // console.log(`[Node ${draggingNode}] Base Q: ${baseQ.toFixed(2)}`);
 
       // Calculate the new Q value from baseQ and current gain
-      const isShelf = draggingNode === 2 || draggingNode === 12;
+      const isShelf = isShelfFilter(draggingNode);
       const gaindB = nodeGainValues[draggingNode] ?? 0;
-      const Q = isShelf
-        ? baseQ
-        : baseQ * Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gaindB)) / 30);
+      const Q = calculateQ(draggingNode, baseQ, gaindB);
 
       // Update parent state via callback with both baseQ and new Q value
       const newBaseQValues = {
@@ -305,13 +304,11 @@ const Controls = forwardRef(function Controls(
     let gaindB = -(offsetY / SVG_HEIGHT) * 60;
     gaindB = Math.max(-30, Math.min(30, gaindB));
 
-    const isShelf = draggingNode === 2 || draggingNode === 12;
+    const isShelf = isShelfFilter(draggingNode);
     const baseQ =
       nodeBaseQValues[draggingNode] ??
       (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
-    const Q = isShelf
-      ? baseQ
-      : baseQ * Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gaindB)) / 30);
+    const Q = calculateQ(draggingNode, baseQ, gaindB);
 
     // Update parent state via callback
     const newPositions = {

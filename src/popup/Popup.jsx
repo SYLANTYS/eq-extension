@@ -4,10 +4,16 @@ import Guide from "./components/Guide";
 import ActiveTabs from "./components/ActiveTabs";
 import Pro from "./components/Pro";
 
-// Q-factor configuration constants
-const Q_MULTIPLIER = 2.0; // Multiplier for gain-dependent Q calculation
-const DEFAULT_PEAKING_Q = 0.3; // Default Q for peaking filters
-const DEFAULT_SHELF_Q = 0.75; // Default Q for shelf filters
+import {
+  Q_MULTIPLIER,
+  DEFAULT_PEAKING_Q,
+  DEFAULT_SHELF_Q,
+  baseQToQ,
+  qToBaseQ,
+  calculateQ,
+  isShelfFilter,
+  FREQUENCIES,
+} from "../lib/qCalculations.js";
 
 // Theme definitions - add new themes as additional objects
 const THEMES = [
@@ -182,18 +188,15 @@ export default function Popup() {
     overrideFreqValues = {},
     overrideBaseQValues = {},
   ) {
-    const frequencies = [
-      5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
-    ];
     const completeGainValues = {};
     const completeFreqValues = {};
     const completeBaseQValues = {};
     const completeQValues = {};
 
     // Set all indexes to defaults first
-    for (let i = 0; i < frequencies.length; i++) {
+    for (let i = 0; i < FREQUENCIES.length; i++) {
       completeGainValues[i] = 0; // 0 dB default
-      completeFreqValues[i] = frequencies[i];
+      completeFreqValues[i] = FREQUENCIES[i];
       // Default baseQ values: shelf Q for shelves, peaking Q for mid-range
       completeBaseQValues[i] =
         i === 2 || i === 12 ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q;
@@ -205,7 +208,7 @@ export default function Popup() {
     Object.assign(completeBaseQValues, overrideBaseQValues);
 
     // Calculate Q values from baseQ and gain (no unnecessary conversions)
-    for (let i = 0; i < frequencies.length; i++) {
+    for (let i = 0; i < FREQUENCIES.length; i++) {
       const baseQ = completeBaseQValues[i];
       const gain = completeGainValues[i];
       completeQValues[i] = baseQToQ(i, baseQ, gain);
@@ -394,7 +397,7 @@ export default function Popup() {
     const positions = calculateNodePositions(
       completeFreqValues,
       completeGainValues,
-      [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480],
+      FREQUENCIES,
     );
     saveEqStateToLocalStorage(
       positions,
@@ -442,7 +445,7 @@ export default function Popup() {
     const positions = calculateNodePositions(
       completeFreqValues,
       completeGainValues,
-      [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480],
+      FREQUENCIES,
     );
     saveEqStateToLocalStorage(
       positions,
@@ -480,17 +483,14 @@ export default function Popup() {
 
     // Reset Web Audio API filters to defaults
     if (currentTabId) {
-      const frequencies = [
-        5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
-      ];
       const defaultGainValues = {};
       const defaultFreqValues = {};
       const defaultQValues = {};
 
       // Set all filters to their default values
-      for (let i = 0; i < frequencies.length; i++) {
+      for (let i = 0; i < FREQUENCIES.length; i++) {
         defaultGainValues[i] = 0; // 0 dB (no boost/cut)
-        defaultFreqValues[i] = frequencies[i];
+        defaultFreqValues[i] = FREQUENCIES[i];
         defaultQValues[i] =
           i === 2 || i === 12 ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q; // Shelf Q vs peaking Q
       }
@@ -541,46 +541,16 @@ export default function Popup() {
     }
   }
 
-  // Helper function to convert baseQ to Q
-  // Formula: Q = isShelf ? baseQ : baseQ * Math.pow(Q_MULTIPLIER, 1 - 2 * Math.abs(gaindB) / 30)
-  function baseQToQ(index, baseQ, gaindB) {
-    const isShelf = index === 2 || index === 12;
-    if (isShelf) {
-      return baseQ; // For shelves, Q and baseQ are the same
-    } else {
-      const multiplier = Math.pow(
-        Q_MULTIPLIER,
-        1 - (2 * Math.abs(gaindB)) / 30,
-      );
-      return baseQ * multiplier;
-    }
-  }
-
-  // Helper function to convert Q back to baseQ
-  // Formula: Q = isShelf ? baseQ : baseQ * Math.pow(Q_MULTIPLIER, 1 - 2 * Math.abs(gaindB) / 30)
-  // Reverse: baseQ = Q / Math.pow(Q_MULTIPLIER, 1 - 2 * Math.abs(gaindB) / 30)
-  function qToBaseQ(index, q, gaindB) {
-    const isShelf = index === 2 || index === 12;
-    if (isShelf) {
-      return q; // For shelves, Q and baseQ are the same
-    } else {
-      const divisor = Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gaindB)) / 30);
-      return divisor !== 0 ? q / divisor : DEFAULT_PEAKING_Q; // Fallback to default
-    }
-  }
+  // Q calculation functions are now imported from qCalculations.js
 
   // Initialize EQ state from gain/frequency/Q values
   // Calculates positions, baseQ values, and updates all state
   function initializeEqState(gainValues, freqValues, qValues) {
-    const frequencies = [
-      5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480,
-    ];
-
     // Calculate node positions from frequency/gain values
     const positions = calculateNodePositions(
       freqValues,
       gainValues,
-      frequencies,
+      FREQUENCIES,
     );
 
     // Convert Q values back to baseQ
