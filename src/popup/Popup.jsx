@@ -40,16 +40,12 @@ export default function Popup() {
   const [savedPresets, setSavedPresets] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState(null);
 
+  // ============== STATE INITIALIZATION ==============
+
   // Initialize EQ state from gain/frequency/Q values
-  // Calculates positions, baseQ values, and updates all state
   function initializeEqState(gainValues, freqValues, qValues) {
-    // Calculate node positions from frequency/gain values
     const positions = calculateNodePositions(freqValues, gainValues);
-
-    // Convert Q values back to baseQ
     const baseQValues = calculateBaseQValues(qValues, gainValues);
-
-    // Update all state
     setNodePositions(positions);
     setNodeGainValues(gainValues);
     setNodeFrequencyValues(freqValues);
@@ -73,7 +69,6 @@ export default function Popup() {
     setNodeBaseQValues(savedBaseQs);
     console.log("[Popup] Falling back to localStorage for EQ state");
 
-    // Sync localStorage state to Web Audio API
     if (Object.keys(savedGains).length > 0) {
       console.log("[Popup] Syncing localStorage state to Web Audio API...");
       sendMessage({
@@ -85,6 +80,15 @@ export default function Popup() {
       });
       console.log("[Popup] localStorage state synced to Web Audio API");
     }
+  }
+
+  // Reset all EQ state arrays to empty
+  function resetAllEqState() {
+    setNodePositions({});
+    setNodeGainValues({});
+    setNodeFrequencyValues({});
+    setNodeQValues({});
+    setNodeBaseQValues({});
   }
 
   // Backend synchronization hook (needs nodeGainValues etc for sync)
@@ -114,62 +118,32 @@ export default function Popup() {
   // Spectrum data hook
   const spectrumData = useSpectrumData(eqActive, currentTabId);
 
-  // Starts EQ processing for the active tab.
-  async function startEq() {
+  // ============== EQ CONTROL ==============
+
+  // Start EQ processing and reset filters
+  async function handleStartEq() {
     const res = await sendMessage({ type: MSG.START_EQ, tabId: currentTabId });
     if (res?.ok) {
       setEqActive(true);
       setVolumeState(1);
-      // Reset all EQ states
-      setNodePositions({});
-      setNodeGainValues({});
-      setNodeFrequencyValues({});
-      setNodeQValues({});
-      setNodeBaseQValues({});
+      resetAllEqState();
+      await handleResetFilters();
     }
   }
 
-  // Stops EQ processing for the active tab.
-  async function stopEq() {
+  // Stop EQ processing and reset filters
+  async function handleStopEq() {
     const res = await sendMessage({ type: MSG.STOP_EQ, tabId: currentTabId });
     if (res?.ok) {
       setEqActive(false);
       setVolumeState(1);
-      // Reset all EQ states
-      setNodePositions({});
-      setNodeGainValues({});
-      setNodeFrequencyValues({});
-      setNodeQValues({});
-      setNodeBaseQValues({});
+      resetAllEqState();
+      await handleResetFilters();
     }
   }
 
-  // Stops EQ and resets all filters
-  async function handleStopEqAndReset() {
-    await stopEq();
-    await handleResetFilters();
-  }
+  // ============== PRESET HANDLERS ==============
 
-  // Starts EQ and resets all filters
-  async function handleStartEqAndReset() {
-    await startEq();
-    await handleResetFilters();
-  }
-
-  // Load presets from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem("eqPresets");
-    if (stored) {
-      try {
-        const presets = JSON.parse(stored);
-        setSavedPresets(presets);
-      } catch (e) {
-        console.warn("[Popup] Failed to load presets:", e);
-      }
-    }
-  }, []);
-
-  // Save preset to localStorage
   async function handleSavePreset() {
     if (!presetName.trim()) {
       // alert("Please enter a preset name");
@@ -274,25 +248,15 @@ export default function Popup() {
     );
   }
 
-  // Resets all EQ filters to default values and clears preset selection
   async function handleResetFilters() {
-    // Reset local state
-    setNodePositions({});
-    setNodeGainValues({});
-    setNodeFrequencyValues({});
-    setNodeQValues({});
-    setNodeBaseQValues({});
+    resetAllEqState();
     setSelectedPreset(null);
     setPresetName("");
-
-    // Clear saved EQ state from localStorage
     clearEqStateFromLocalStorage();
 
-    // Reset Web Audio API filters to defaults
     if (currentTabId) {
       const { completeGainValues, completeFreqValues, completeQValues } =
         getDefaultEqValues();
-
       await sendMessage({
         type: MSG.UPDATE_EQ_NODES,
         tabId: currentTabId,
@@ -303,7 +267,8 @@ export default function Popup() {
     }
   }
 
-  // Update EQ nodes and sync to Web Audio API
+  // ============== EQ NODE UPDATES ==============
+
   async function handleEqNodesChange(
     newPositions,
     newGainValues,
@@ -311,14 +276,11 @@ export default function Popup() {
     newQValues,
     newBaseQValues,
   ) {
-    // Update local state
     setNodePositions(newPositions);
     setNodeGainValues(newGainValues);
     setNodeFrequencyValues(newFrequencyValues);
     setNodeQValues(newQValues);
     setNodeBaseQValues(newBaseQValues);
-
-    // Save to localStorage and sync to Web Audio API
     await applyEqState(
       currentTabId,
       newGainValues,
@@ -328,6 +290,22 @@ export default function Popup() {
       newPositions,
     );
   }
+
+  // ============== EFFECTS ==============
+
+  // Load presets from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("eqPresets");
+    if (stored) {
+      try {
+        setSavedPresets(JSON.parse(stored));
+      } catch (e) {
+        console.warn("[Popup] Failed to load presets:", e);
+      }
+    }
+  }, []);
+
+  // ============== RENDER ==============
 
   return (
     <div
@@ -485,7 +463,7 @@ export default function Popup() {
               placeholder="Preset Name"
               value={presetName}
               onChange={(e) => setPresetName(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSavePreset()}
+              onKeyDown={(e) => e.key === "Enter" && handleSavePreset()}
               style={{
                 borderColor: COLORS.TEXT,
                 backgroundColor: COLORS.BACKGROUND,
@@ -588,7 +566,7 @@ export default function Popup() {
         {/* Centered primary action */}
         <div className="flex justify-center mb-5">
           <button
-            onClick={eqActive ? handleStopEqAndReset : handleStartEqAndReset}
+            onClick={eqActive ? handleStopEq : handleStartEq}
             style={{
               borderColor: COLORS.TEXT,
               ...(hoveredButton === "main"
