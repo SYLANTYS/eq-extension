@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Controls from "./components/Controls";
 import Guide from "./components/Guide";
 import ActiveTabs from "./components/ActiveTabs";
@@ -23,7 +23,6 @@ export default function Popup() {
   const [activeTab, setActiveTab] = useState("Controls");
   const [hoveredTab, setHoveredTab] = useState(null);
   const [hoveredButton, setHoveredButton] = useState(null);
-  const controlsRef = useRef(null);
 
   // Theme hook
   const { themeIndex, setThemeIndex, COLORS, THEMES } = useTheme();
@@ -426,7 +425,6 @@ export default function Popup() {
         {/* ================= MAIN BODY ================= */}
         {activeTab === "Controls" && (
           <Controls
-            ref={controlsRef}
             volume={volume}
             onVolumeStart={handleVolumeStart}
             nodePositions={nodePositions}

@@ -1,4 +1,4 @@
-import { useRef, useImperativeHandle, forwardRef } from "react";
+import { useRef } from "react";
 import { generateBellCurve } from "../../lib/controls/graphs.js";
 import { FREQUENCIES } from "../../lib/qCalculations.js";
 import { useNodeDrag } from "../hooks/controls/useNodeDrag.js";
@@ -39,24 +39,21 @@ import {
  * - onEnsureBackend: callback to ensure backend is ready before operations
  * - spectrumData: array of frequency bin values (0-255) for real-time spectrum
  */
-const Controls = forwardRef(function Controls(
-  {
-    volume,
-    onVolumeStart,
-    nodePositions,
-    nodeGainValues,
-    nodeFrequencyValues,
-    nodeQValues,
-    nodeBaseQValues,
-    onEqNodesChange,
-    onEnsureBackend,
-    spectrumData = [],
-    eqActive = true,
-    themes = [],
-    themeIndex = 0,
-  },
-  ref,
-) {
+function Controls({
+  volume,
+  onVolumeStart,
+  nodePositions,
+  nodeGainValues,
+  nodeFrequencyValues,
+  nodeQValues,
+  nodeBaseQValues,
+  onEqNodesChange,
+  onEnsureBackend,
+  spectrumData = [],
+  eqActive = true,
+  themes = [],
+  themeIndex = 0,
+}) {
   const svgRef = useRef(null);
 
   // Get current theme colors
@@ -81,21 +78,9 @@ const Controls = forwardRef(function Controls(
     onEnsureBackend,
   });
 
-  // Expose resetFilters method via ref
-  useImperativeHandle(ref, () => ({
-    resetFilters() {
-      onEqNodesChange({}, {}, {}, {}, {});
-      console.log("[Controls] All EQ nodes reset to defaults");
-    },
-  }));
-
   /**
    * Get current position of a node including drag offset
    * Constrains node to stay within SVG viewbox (accounting for radius)
-   */
-  /**
-   * Get current position of a node including drag offset.
-   * Wrapper around shared function with component's nodePositions.
    */
   function getNodePosition(index) {
     return getNodePositionBase(index, nodePositions, frequencies);
@@ -280,6 +265,6 @@ const Controls = forwardRef(function Controls(
       </main>
     </div>
   );
-});
+}
 
 export default Controls;
