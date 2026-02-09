@@ -10,6 +10,7 @@ import { FREQUENCIES } from "../../lib/qCalculations.js";
 import { useNodeDrag } from "../hooks/useNodeDrag.js";
 import { useSpectrumToggle } from "../hooks/useSpectrumToggle.js";
 import SpectrumLine from "./SpectrumLine.jsx";
+import VolumeSlider from "./VolumeSlider.jsx";
 import {
   SVG_WIDTH,
   SVG_HEIGHT,
@@ -109,17 +110,6 @@ const Controls = forwardRef(function Controls(
     return { x: constrainedX, y: constrainedY };
   }
 
-  /**
-   * Convert linear gain value to slider position
-   * Maps gain range (-30 to +10 dB) to visual position (0-100%)
-   */
-  function getSliderPosition(gain) {
-    if (gain === 0) return 0;
-    const db = 20 * Math.log10(gain);
-    const ratio = (db + 30) / 40;
-    return Math.min(Math.max(ratio, 0), 1) * 100;
-  }
-
   return (
     <div className="flex overflow-hidden">
       {/* ===== LEFT SIDEBAR: VOLUME CONTROL ===== */}
@@ -149,24 +139,11 @@ const Controls = forwardRef(function Controls(
         </button>
 
         {/* Master volume slider */}
-        <div className="flex flex-col items-center select-none">
-          <div className="text-xs mb-2 select-none">volume</div>
-          <div
-            className="h-60 w-px rounded relative"
-            style={{
-              backgroundColor: `${COLORS.TEXT}80`,
-            }}
-            onMouseDown={onVolumeStart}
-          >
-            <div
-              className="absolute w-9 h-1.5 -left-4.25 cursor-pointer"
-              style={{
-                backgroundColor: COLORS.TEXT,
-                bottom: `${getSliderPosition(volume)}%`,
-              }}
-            />
-          </div>
-        </div>
+        <VolumeSlider
+          volume={volume}
+          onVolumeStart={onVolumeStart}
+          colors={COLORS}
+        />
       </aside>
 
       {/* ===== MAIN: EQ VISUALIZATION ===== */}
