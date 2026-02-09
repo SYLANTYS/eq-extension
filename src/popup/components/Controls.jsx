@@ -9,13 +9,13 @@ import { generateBellCurve } from "../../lib/graphs.js";
 import { FREQUENCIES } from "../../lib/qCalculations.js";
 import { useNodeDrag } from "../hooks/useNodeDrag.js";
 import { useSpectrumToggle } from "../hooks/useSpectrumToggle.js";
+import SpectrumLine from "./SpectrumLine.jsx";
 import {
   SVG_WIDTH,
   SVG_HEIGHT,
   CENTER_Y,
   NODE_RADIUS,
   getBaseXPos,
-  getXPosFromFrequency,
 } from "../../lib/svgCoordinateSystem.js";
 
 /**
@@ -120,67 +120,6 @@ const Controls = forwardRef(function Controls(
     return Math.min(Math.max(ratio, 0), 1) * 100;
   }
 
-  /**
-   * Render spectrum analyzer as a high-resolution line graph
-   * Uses all frequency bins for maximum accuracy
-   * Maps entire frequency range (5Hz-20480Hz) to full viewbox width and height
-   * Inverted Y-axis: magnitude 255 at top (y=0), magnitude 0 at bottom (y=500)
-   */
-  function renderSpectrumLine() {
-    if (
-      !eqActive ||
-      !spectrumEnabled ||
-      !spectrumData ||
-      spectrumData.length === 0
-    ) {
-      return null;
-    }
-
-    const binCount = spectrumData.length;
-    const points = [];
-
-    // Estimate sample rate and Nyquist frequency
-    // Standard Web Audio contexts use 48kHz sample rate
-    const sampleRate = 48000;
-    const nyquistFrequency = sampleRate / 2; // 24000Hz
-
-    // Generate points for all spectrum bins, mapping to logarithmic frequency scale
-    for (let binIdx = 0; binIdx < binCount; binIdx++) {
-      // Calculate the actual frequency this bin represents
-      const binFrequency = (binIdx / binCount) * nyquistFrequency;
-
-      // Map this frequency to X position using the same log scale as EQ nodes
-      // Clamp frequencies to the valid range (10Hz - 20480Hz)
-      let clampedFrequency = binFrequency;
-      if (binFrequency < 10) {
-        clampedFrequency = 10; // Clamp to 10Hz
-      } else if (binFrequency > frequencies[frequencies.length - 1]) {
-        clampedFrequency = frequencies[frequencies.length - 1]; // Clamp to 20480Hz
-      }
-      const xPos = getXPosFromFrequency(clampedFrequency, frequencies);
-
-      const magnitude = spectrumData[binIdx] || 0;
-
-      // Use full viewbox height (0-500)
-      // Inverted Y: magnitude 255 = top (0), magnitude 0 = bottom (500)
-      const y = SVG_HEIGHT - (magnitude / 255) * SVG_HEIGHT;
-
-      // Add all points - clamping ensures they stay within the visible range
-      points.push(`${xPos},${y}`);
-    }
-
-    return (
-      <polyline
-        points={points.join(" ")}
-        stroke={COLORS.TEXT}
-        strokeWidth="2"
-        fill="none"
-        opacity="0.6"
-        pointerEvents="none"
-      />
-    );
-  }
-
   return (
     <div className="flex overflow-hidden">
       {/* ===== LEFT SIDEBAR: VOLUME CONTROL ===== */}
@@ -281,7 +220,13 @@ const Controls = forwardRef(function Controls(
           </defs>
 
           {/* SPECTRUM VISUALIZER LINE */}
-          {renderSpectrumLine()}
+          <SpectrumLine
+            spectrumData={spectrumData}
+            frequencies={frequencies}
+            eqActive={eqActive}
+            spectrumEnabled={spectrumEnabled}
+            color={COLORS.TEXT}
+          />
 
           {/* Y-AXIS: Gain Labels (-25 to +25 dB) */}
           {[25, 20, 15, 10, 5, 0, -5, -10, -15, -20, -25].map((label) => {
