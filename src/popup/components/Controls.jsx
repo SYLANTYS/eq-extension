@@ -8,6 +8,7 @@ import {
 import { generateBellCurve } from "../../lib/graphs.js";
 import { FREQUENCIES } from "../../lib/qCalculations.js";
 import { useNodeDrag } from "../hooks/useNodeDrag.js";
+import { useSpectrumToggle } from "../hooks/useSpectrumToggle.js";
 import {
   SVG_WIDTH,
   SVG_HEIGHT,
@@ -58,7 +59,6 @@ const Controls = forwardRef(function Controls(
   },
   ref,
 ) {
-  const [spectrumEnabled, setSpectrumEnabledState] = useState(false);
   const [hoveredSpectrumBtn, setHoveredSpectrumBtn] = useState(false);
   const svgRef = useRef(null);
 
@@ -67,6 +67,9 @@ const Controls = forwardRef(function Controls(
 
   // Standard frequency bands used in audio processing
   const frequencies = FREQUENCIES;
+
+  // Spectrum toggle hook
+  const { spectrumEnabled, toggleSpectrum } = useSpectrumToggle();
 
   // Node drag hook
   const { draggingNode, handleNodeMouseDown } = useNodeDrag({
@@ -80,27 +83,6 @@ const Controls = forwardRef(function Controls(
     onEqNodesChange,
     onEnsureBackend,
   });
-
-  // Load spectrum enabled state from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem("spectrumVisualizerEnabled");
-    if (stored !== null) {
-      setSpectrumEnabledState(JSON.parse(stored));
-    }
-  }, []);
-
-  // Save spectrum enabled state to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem(
-      "spectrumVisualizerEnabled",
-      JSON.stringify(spectrumEnabled),
-    );
-  }, [spectrumEnabled]);
-
-  // Wrapper to update state and trigger localStorage save
-  function setSpectrumEnabled(value) {
-    setSpectrumEnabledState(value);
-  }
 
   // Expose resetFilters method via ref
   useImperativeHandle(ref, () => ({
@@ -205,7 +187,7 @@ const Controls = forwardRef(function Controls(
       <aside className="w-12 ml-1 flex flex-col items-center justify-between">
         {/* Spectrum visualizer toggle (rotated text) */}
         <button
-          onClick={() => setSpectrumEnabled(!spectrumEnabled)}
+          onClick={toggleSpectrum}
           disabled={!eqActive}
           style={{
             borderColor: !eqActive ? `${COLORS.TEXT}80` : COLORS.TEXT,
