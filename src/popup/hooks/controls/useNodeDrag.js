@@ -1,4 +1,4 @@
-// src/popup/hooks/useNodeDrag.js
+// src/popup/hooks/controls/useNodeDrag.js
 // Hook for managing EQ node drag interactions.
 // Handles normal drag (frequency/gain) and shift+drag (Q adjustment).
 
@@ -8,13 +8,13 @@ import {
   DEFAULT_SHELF_Q,
   calculateQ,
   isShelfFilter,
-} from "../../lib/qCalculations.js";
+} from "../../../lib/qCalculations.js";
 import {
   SVG_HEIGHT,
   CENTER_Y,
   getBaseXPos,
   getFrequencyFromXPos,
-} from "../../lib/svgCoordinateSystem.js";
+} from "../../../lib/controls/svgCoordinateSystem.js";
 
 /**
  * Hook for EQ node drag behavior.

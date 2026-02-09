@@ -1,4 +1,4 @@
-// src/popup/hooks/useSpectrumToggle.js
+// src/popup/hooks/controls/useSpectrumToggle.js
 // Hook for managing spectrum visualizer toggle state with localStorage persistence.
 
 import { useState, useEffect, useCallback } from "react";

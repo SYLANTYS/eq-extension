@@ -1,10 +1,10 @@
-// src/popup/components/SpectrumLine.jsx
+// src/popup/components/controls/SpectrumLine.jsx
 // Renders spectrum analyzer as a high-resolution SVG line graph.
 
 import {
   SVG_HEIGHT,
   getXPosFromFrequency,
-} from "../../lib/svgCoordinateSystem.js";
+} from "../../../lib/controls/svgCoordinateSystem.js";
 
 /**
  * SpectrumLine Component - Real-time spectrum analyzer visualization

@@ -14,7 +14,7 @@ import {
   getBaseXPos,
   getXPosFromFrequency,
   calculatePositionOffset,
-} from "./svgCoordinateSystem.js";
+} from "./controls/svgCoordinateSystem.js";
 
 // localStorage key for current EQ state
 const EQ_STATE_KEY = "eqCurrentState";

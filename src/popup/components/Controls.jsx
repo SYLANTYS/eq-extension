@@ -1,12 +1,12 @@
 import { useRef, useImperativeHandle, forwardRef } from "react";
-import { generateBellCurve } from "../../lib/graphs.js";
+import { generateBellCurve } from "../../lib/controls/graphs.js";
 import { FREQUENCIES } from "../../lib/qCalculations.js";
-import { useNodeDrag } from "../hooks/useNodeDrag.js";
-import { useSpectrumToggle } from "../hooks/useSpectrumToggle.js";
-import SpectrumLine from "./SpectrumLine.jsx";
-import VolumeSlider from "./VolumeSlider.jsx";
-import SpectrumToggleButton from "./SpectrumToggleButton.jsx";
-import EqGradientDefs from "./EqGradientDefs.jsx";
+import { useNodeDrag } from "../hooks/controls/useNodeDrag.js";
+import { useSpectrumToggle } from "../hooks/controls/useSpectrumToggle.js";
+import SpectrumLine from "./controls/SpectrumLine.jsx";
+import VolumeSlider from "./controls/VolumeSlider.jsx";
+import SpectrumToggleButton from "./controls/SpectrumToggleButton.jsx";
+import EqGradientDefs from "./controls/EqGradientDefs.jsx";
 import {
   SVG_WIDTH,
   SVG_HEIGHT,
@@ -14,7 +14,7 @@ import {
   NODE_RADIUS,
   getBaseXPos,
   getNodePosition as getNodePositionBase,
-} from "../../lib/svgCoordinateSystem.js";
+} from "../../lib/controls/svgCoordinateSystem.js";
 
 /**
  * Controls Component - Interactive EQ Visualizer

@@ -1,4 +1,4 @@
-// src/popup/components/SpectrumToggleButton.jsx
+// src/popup/components/controls/SpectrumToggleButton.jsx
 // Rotated toggle button for spectrum visualizer.
 
 import { useState } from "react";

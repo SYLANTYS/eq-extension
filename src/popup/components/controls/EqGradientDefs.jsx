@@ -1,7 +1,7 @@
-// src/popup/components/EqGradientDefs.jsx
+// src/popup/components/controls/EqGradientDefs.jsx
 // SVG gradient definitions for EQ bell curves.
 
-import { CENTER_Y } from "../../lib/svgCoordinateSystem.js";
+import { CENTER_Y } from "../../../lib/controls/svgCoordinateSystem.js";
 
 /**
  * EqGradientDefs Component - SVG gradient definitions for bell curves

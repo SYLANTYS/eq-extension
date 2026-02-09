@@ -1,8 +1,8 @@
-// src/lib/svgCoordinateSystem.js
+// src/lib/controls/svgCoordinateSystem.js
 // Shared SVG coordinate system constants and conversion functions.
 // Used by Controls.jsx, eqStateUtils.js, and graphs.js.
 
-import { FREQUENCIES } from "./qCalculations.js";
+import { FREQUENCIES } from "../qCalculations.js";
 
 // SVG coordinate system constants
 export const SVG_WIDTH = 1000;

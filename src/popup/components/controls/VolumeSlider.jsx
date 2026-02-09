@@ -1,4 +1,4 @@
-// src/popup/components/VolumeSlider.jsx
+// src/popup/components/controls/VolumeSlider.jsx
 // Vertical volume slider component with dB-scaled position.
 
 /**

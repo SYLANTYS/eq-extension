@@ -5,7 +5,7 @@ import {
   calculateQ,
   isShelfFilter,
   FREQUENCIES,
-} from "./qCalculations.js";
+} from "../qCalculations.js";
 import {
   SVG_WIDTH,
   SVG_HEIGHT,
