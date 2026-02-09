@@ -16,19 +16,19 @@ export const THEMES = [
     POINT: "#ffffff",
     SHELF: "#b02020",
   },
-  //monochrome
+  //monochrome or apple
   {
-    BACKGROUND: "#242424",
-    TEXT: "#cccccc",
-    POINT: "#ffffff",
-    SHELF: "#0a0a0a",
+    BACKGROUND: "#F2F2F7",
+    TEXT: "#111111",
+    POINT: "#007AFF",
+    SHELF: "#FF3B30",
   },
   //terminal
   {
-    BACKGROUND: "#070b09",
-    TEXT: "#7fe3ae",
-    POINT: "#bfead3",
-    SHELF: "#4b5fe0",
+    BACKGROUND: "#060A08",
+    TEXT: "#6FE3B2",
+    POINT: "#9AF0C8",
+    SHELF: "#5B6EFF",
   },
   //red and white
   {
@@ -47,7 +47,7 @@ export const THEMES = [
   //Hungary / Italy
   {
     BACKGROUND: "#7a1414",
-    TEXT: "#ffffff",
+    TEXT: "#F2F2F7",
     POINT: "#2fbf5f",
     SHELF: "#ffffff",
   },
