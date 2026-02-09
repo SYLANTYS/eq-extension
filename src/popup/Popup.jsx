@@ -435,6 +435,7 @@ export default function Popup() {
             nodeQValues={nodeQValues}
             nodeBaseQValues={nodeBaseQValues}
             onEqNodesChange={handleEqNodesChange}
+            onEnsureBackend={throttledEnsureBackend}
             spectrumData={spectrumData}
             eqActive={eqActive}
             themes={THEMES}

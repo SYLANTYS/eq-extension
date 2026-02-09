@@ -6,26 +6,14 @@ import {
   forwardRef,
 } from "react";
 import { generateBellCurve } from "../../lib/graphs.js";
-import {
-  Q_MULTIPLIER,
-  DEFAULT_PEAKING_Q,
-  DEFAULT_SHELF_Q,
-  calculateQ,
-  isShelfFilter,
-  FREQUENCIES,
-} from "../../lib/qCalculations.js";
-import { sendMessage, MSG } from "../../lib/chromeMessaging.js";
+import { FREQUENCIES } from "../../lib/qCalculations.js";
+import { useNodeDrag } from "../hooks/useNodeDrag.js";
 import {
   SVG_WIDTH,
   SVG_HEIGHT,
   CENTER_Y,
   NODE_RADIUS,
-  X_AXIS_START,
-  X_AXIS_END,
-  USABLE_WIDTH,
-  GEOMETRIC_RATIO,
   getBaseXPos,
-  getFrequencyFromXPos,
   getXPosFromFrequency,
 } from "../../lib/svgCoordinateSystem.js";
 
@@ -49,6 +37,7 @@ import {
  * - nodeQValues: { [index]: Q } - Q values from Web Audio API
  * - nodeBaseQValues: { [index]: baseQ } - base Q values for shift-drag
  * - onEqNodesChange: callback(positions, gainValues, freqValues, qValues, baseQValues)
+ * - onEnsureBackend: callback to ensure backend is ready before operations
  * - spectrumData: array of frequency bin values (0-255) for real-time spectrum
  */
 const Controls = forwardRef(function Controls(
@@ -61,6 +50,7 @@ const Controls = forwardRef(function Controls(
     nodeQValues,
     nodeBaseQValues,
     onEqNodesChange,
+    onEnsureBackend,
     spectrumData = [],
     eqActive = true,
     themes = [],
@@ -68,18 +58,28 @@ const Controls = forwardRef(function Controls(
   },
   ref,
 ) {
-  const [draggingNode, setDraggingNode] = useState(null);
-  const [isShiftDrag, setIsShiftDrag] = useState(false);
   const [spectrumEnabled, setSpectrumEnabledState] = useState(false);
   const [hoveredSpectrumBtn, setHoveredSpectrumBtn] = useState(false);
   const svgRef = useRef(null);
-  const shiftDragStartYRef = useRef(null); // Track initial Y position for shift drag
 
   // Get current theme colors
   const COLORS = themes[themeIndex] || {};
 
-  // Throttle tracking for ensuring backend is ready (1 second cooldown)
-  const lastEnsureTimeRef = useRef(0);
+  // Standard frequency bands used in audio processing
+  const frequencies = FREQUENCIES;
+
+  // Node drag hook
+  const { draggingNode, handleNodeMouseDown } = useNodeDrag({
+    svgRef,
+    frequencies,
+    nodePositions,
+    nodeGainValues,
+    nodeFrequencyValues,
+    nodeQValues,
+    nodeBaseQValues,
+    onEqNodesChange,
+    onEnsureBackend,
+  });
 
   // Load spectrum enabled state from localStorage on mount
   useEffect(() => {
@@ -110,37 +110,6 @@ const Controls = forwardRef(function Controls(
     },
   }));
 
-  // Throttled ensure backend ready with 1 second cooldown
-  async function throttledEnsureBackend() {
-    const now = Date.now();
-    if (now - lastEnsureTimeRef.current < 1000) {
-      return; // Skip if called within last 1 second
-    }
-    lastEnsureTimeRef.current = now;
-
-    // Call backend ping and reinit via sendMessage
-    try {
-      await sendMessage({ type: MSG.PING_BG });
-
-      await sendMessage({ type: MSG.REINIT_MISSING_AUDIO });
-
-      // Rehydrate Web Audio API with current UI state
-      if (Object.keys(nodeGainValues).length > 0) {
-        await sendMessage({
-          type: MSG.UPDATE_EQ_NODES,
-          nodeGainValues,
-          nodeFrequencyValues,
-          nodeQValues,
-        });
-      }
-    } catch (e) {
-      console.warn("[Controls] Error ensuring backend:", e);
-    }
-  }
-
-  // Standard frequency bands used in audio processing
-  const frequencies = FREQUENCIES;
-
   /**
    * Get current position of a node including drag offset
    * Constrains node to stay within SVG viewbox (accounting for radius)
@@ -157,159 +126,6 @@ const Controls = forwardRef(function Controls(
 
     return { x: constrainedX, y: constrainedY };
   }
-
-  /**
-   * Initiate node drag
-   */
-  function handleNodeMouseDown(index, e) {
-    e.preventDefault();
-    throttledEnsureBackend();
-    setDraggingNode(index);
-    setIsShiftDrag(e.shiftKey);
-    if (e.shiftKey) {
-      // For shift drag, capture starting Y position
-      const svg = svgRef.current;
-      if (svg) {
-        const rect = svg.getBoundingClientRect();
-        const svgRect = svg.viewBox.baseVal;
-        const scaleY = svgRect.height / rect.height;
-        const mouseY = (e.clientY - rect.top) * scaleY;
-        shiftDragStartYRef.current = mouseY;
-      }
-    }
-  }
-
-
-
-  /**
-   * Handle mouse move during drag
-   * Normal drag: updates node position (frequency/gain)
-   * Shift+drag (vertical only): adjusts Q value from 0.1 to 2.0
-   * Runs at document level to allow dragging outside SVG
-   */
-  function handleMouseMove(e) {
-    if (draggingNode === null) return;
-
-    const svg = svgRef.current;
-    if (!svg) return;
-
-    const rect = svg.getBoundingClientRect();
-    const svgRect = svg.viewBox.baseVal;
-
-    // Convert screen coordinates to SVG viewBox coordinates
-    const scaleX = svgRect.width / rect.width;
-    const scaleY = svgRect.height / rect.height;
-    const mouseX = (e.clientX - rect.left) * scaleX;
-    const mouseY = (e.clientY - rect.top) * scaleY;
-
-    if (isShiftDrag) {
-      // Shift+drag: Adjust base Q value based on vertical movement (0.1 to 2.0)
-      const logMin = Math.log(0.1);
-      const logMax = Math.log(2.0);
-      const logCenter = Math.log(DEFAULT_PEAKING_Q);
-
-      const startY = shiftDragStartYRef.current ?? mouseY;
-      const qOffsetRatio = (startY - mouseY) / (SVG_HEIGHT / 3);
-      let logQ = logCenter + qOffsetRatio * ((logMax - logMin) / 2);
-      let baseQ = Math.exp(logQ);
-      baseQ = Math.max(0.1, Math.min(2.0, baseQ));
-
-      // console.log(`[Node ${draggingNode}] Base Q: ${baseQ.toFixed(2)}`);
-
-      // Calculate the new Q value from baseQ and current gain
-      const isShelf = isShelfFilter(draggingNode);
-      const gaindB = nodeGainValues[draggingNode] ?? 0;
-      const Q = calculateQ(draggingNode, baseQ, gaindB);
-
-      // Update parent state via callback with both baseQ and new Q value
-      const newBaseQValues = {
-        ...nodeBaseQValues,
-        [draggingNode]: baseQ,
-      };
-      const newQValues = {
-        ...nodeQValues,
-        [draggingNode]: Q,
-      };
-      onEqNodesChange(
-        nodePositions,
-        nodeGainValues,
-        nodeFrequencyValues,
-        newQValues,
-        newBaseQValues,
-      );
-      return;
-    }
-
-    // Normal drag: update node position (frequency/gain)
-    const baseX = getBaseXPos(draggingNode, frequencies);
-    const offsetX = mouseX - baseX;
-    const offsetY = mouseY - CENTER_Y;
-    const currentX = baseX + offsetX;
-
-    // Calculate frequency and gain
-    let frequency = getFrequencyFromXPos(currentX, frequencies);
-    frequency = Math.max(1, Math.min(21500, frequency));
-
-    let gaindB = -(offsetY / SVG_HEIGHT) * 60;
-    gaindB = Math.max(-30, Math.min(30, gaindB));
-
-    const isShelf = isShelfFilter(draggingNode);
-    const baseQ =
-      nodeBaseQValues[draggingNode] ??
-      (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
-    const Q = calculateQ(draggingNode, baseQ, gaindB);
-
-    // Update parent state via callback
-    const newPositions = {
-      ...nodePositions,
-      [draggingNode]: { x: offsetX, y: offsetY },
-    };
-    const newGainValues = {
-      ...nodeGainValues,
-      [draggingNode]: gaindB,
-    };
-    const newFrequencyValues = {
-      ...nodeFrequencyValues,
-      [draggingNode]: frequency,
-    };
-    const newQValues = {
-      ...nodeQValues,
-      [draggingNode]: Q,
-    };
-
-    onEqNodesChange(
-      newPositions,
-      newGainValues,
-      newFrequencyValues,
-      newQValues,
-      nodeBaseQValues,
-    );
-  }
-
-  /**
-   * End drag operation
-   */
-  function handleMouseUp() {
-    setDraggingNode(null);
-    setIsShiftDrag(false);
-    shiftDragStartYRef.current = null;
-  }
-
-  /**
-   * Attach document-level mouse listeners when dragging
-   * Allows dragging to continue outside SVG boundaries
-   */
-  useEffect(() => {
-    if (draggingNode === null) return;
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [draggingNode]);
 
   /**
    * Convert linear gain value to slider position

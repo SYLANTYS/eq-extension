@@ -5,7 +5,7 @@
 import { useRef, useCallback } from "react";
 import { sendMessage, MSG } from "../../lib/chromeMessaging.js";
 import {
-  Q_MULTIPLIER,
+  calculateQ,
   DEFAULT_PEAKING_Q,
   DEFAULT_SHELF_Q,
 } from "../../lib/qCalculations.js";
@@ -53,9 +53,7 @@ export function useBackendSync(
         const baseQ =
           nodeBaseQValues[i] ?? (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
         const gain = nodeGainValues[i] ?? 0;
-        recalculatedQValues[i] = isShelf
-          ? baseQ
-          : baseQ * Math.pow(Q_MULTIPLIER, 1 - (2 * Math.abs(gain)) / 30);
+        recalculatedQValues[i] = calculateQ(i, baseQ, gain);
       }
 
       await sendMessage({
