@@ -1,8 +1,4 @@
-import {
-  useRef,
-  useImperativeHandle,
-  forwardRef,
-} from "react";
+import { useRef, useImperativeHandle, forwardRef } from "react";
 import { generateBellCurve } from "../../lib/graphs.js";
 import { FREQUENCIES } from "../../lib/qCalculations.js";
 import { useNodeDrag } from "../hooks/useNodeDrag.js";
@@ -17,6 +13,7 @@ import {
   CENTER_Y,
   NODE_RADIUS,
   getBaseXPos,
+  getNodePosition as getNodePositionBase,
 } from "../../lib/svgCoordinateSystem.js";
 
 /**
@@ -96,17 +93,12 @@ const Controls = forwardRef(function Controls(
    * Get current position of a node including drag offset
    * Constrains node to stay within SVG viewbox (accounting for radius)
    */
+  /**
+   * Get current position of a node including drag offset.
+   * Wrapper around shared function with component's nodePositions.
+   */
   function getNodePosition(index) {
-    const baseX = getBaseXPos(index, frequencies);
-    const pos = nodePositions[index] || { x: 0, y: 0 };
-    const nodeX = baseX + pos.x;
-    const nodeY = CENTER_Y + pos.y;
-
-    // Keep entire circle inside viewbox
-    const constrainedX = Math.max(3, Math.min(SVG_WIDTH - 3, nodeX));
-    const constrainedY = Math.max(3, Math.min(SVG_HEIGHT - 3, nodeY));
-
-    return { x: constrainedX, y: constrainedY };
+    return getNodePositionBase(index, nodePositions, frequencies);
   }
 
   return (

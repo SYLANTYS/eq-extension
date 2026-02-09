@@ -16,29 +16,8 @@ import {
   GEOMETRIC_RATIO,
   getBaseXPos,
   getFrequencyFromXPos,
+  getNodePosition,
 } from "./svgCoordinateSystem.js";
-
-/**
- * Get current position of a node including drag offset.
- * Internal helper for generateBellCurve.
- *
- * @param {number} index - Node index
- * @param {Object} nodePositions - Node positions { [index]: { x, y } }
- * @param {number[]} frequencies - Reference frequency array
- * @returns {{ x: number, y: number }} Constrained node position
- */
-function getNodePosition(index, nodePositions, frequencies) {
-  const baseX = getBaseXPos(index, frequencies);
-  const pos = nodePositions[index] || { x: 0, y: 0 };
-  const nodeX = baseX + pos.x;
-  const nodeY = CENTER_Y + pos.y;
-
-  // Keep entire circle inside viewbox
-  const constrainedX = Math.max(3, Math.min(SVG_WIDTH - 3, nodeX));
-  const constrainedY = Math.max(3, Math.min(SVG_HEIGHT - 3, nodeY));
-
-  return { x: constrainedX, y: constrainedY };
-}
 
 /**
  * Generate SVG path for true parametric EQ filter response

@@ -102,3 +102,25 @@ export function calculatePositionOffset(index, frequency, gainDb, frequencies = 
   const offsetY = -(gainDb / 60) * SVG_HEIGHT;
   return { x: offsetX, y: offsetY };
 }
+
+/**
+ * Get current position of a node including drag offset.
+ * Constrains node to stay within SVG viewbox (accounting for radius).
+ *
+ * @param {number} index - Node index (0-12)
+ * @param {Object} nodePositions - Node positions { [index]: { x, y } }
+ * @param {number[]} frequencies - Reference frequency array (defaults to FREQUENCIES)
+ * @returns {{ x: number, y: number }} Constrained node position in SVG coordinates
+ */
+export function getNodePosition(index, nodePositions, frequencies = FREQUENCIES) {
+  const baseX = getBaseXPos(index, frequencies);
+  const pos = nodePositions[index] || { x: 0, y: 0 };
+  const nodeX = baseX + pos.x;
+  const nodeY = CENTER_Y + pos.y;
+
+  // Keep entire circle inside viewbox
+  const constrainedX = Math.max(3, Math.min(SVG_WIDTH - 3, nodeX));
+  const constrainedY = Math.max(3, Math.min(SVG_HEIGHT - 3, nodeY));
+
+  return { x: constrainedX, y: constrainedY };
+}
