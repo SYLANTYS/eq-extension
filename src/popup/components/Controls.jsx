@@ -1,6 +1,4 @@
 import {
-  useState,
-  useEffect,
   useRef,
   useImperativeHandle,
   forwardRef,
@@ -11,6 +9,7 @@ import { useNodeDrag } from "../hooks/useNodeDrag.js";
 import { useSpectrumToggle } from "../hooks/useSpectrumToggle.js";
 import SpectrumLine from "./SpectrumLine.jsx";
 import VolumeSlider from "./VolumeSlider.jsx";
+import SpectrumToggleButton from "./SpectrumToggleButton.jsx";
 import {
   SVG_WIDTH,
   SVG_HEIGHT,
@@ -60,7 +59,6 @@ const Controls = forwardRef(function Controls(
   },
   ref,
 ) {
-  const [hoveredSpectrumBtn, setHoveredSpectrumBtn] = useState(false);
   const svgRef = useRef(null);
 
   // Get current theme colors
@@ -115,28 +113,12 @@ const Controls = forwardRef(function Controls(
       {/* ===== LEFT SIDEBAR: VOLUME CONTROL ===== */}
       <aside className="w-12 ml-1 flex flex-col items-center justify-between">
         {/* Spectrum visualizer toggle (rotated text) */}
-        <button
-          onClick={toggleSpectrum}
-          disabled={!eqActive}
-          style={{
-            borderColor: !eqActive ? `${COLORS.TEXT}80` : COLORS.TEXT,
-            backgroundColor:
-              spectrumEnabled || hoveredSpectrumBtn
-                ? COLORS.TEXT
-                : "transparent",
-            color:
-              spectrumEnabled || hoveredSpectrumBtn
-                ? COLORS.BACKGROUND
-                : COLORS.TEXT,
-            opacity: !eqActive ? 0.5 : 1,
-            cursor: !eqActive ? "not-allowed" : "pointer",
-          }}
-          className="my-6 text-xs -rotate-90 cursor-pointer border px-2 rounded-b-sm rounded-t-xs"
-          onMouseEnter={() => !eqActive || setHoveredSpectrumBtn(true)}
-          onMouseLeave={() => setHoveredSpectrumBtn(false)}
-        >
-          Spectrum Visualizer
-        </button>
+        <SpectrumToggleButton
+          enabled={spectrumEnabled}
+          onToggle={toggleSpectrum}
+          eqActive={eqActive}
+          colors={COLORS}
+        />
 
         {/* Master volume slider */}
         <VolumeSlider
