@@ -10,6 +10,7 @@ import { useSpectrumToggle } from "../hooks/useSpectrumToggle.js";
 import SpectrumLine from "./SpectrumLine.jsx";
 import VolumeSlider from "./VolumeSlider.jsx";
 import SpectrumToggleButton from "./SpectrumToggleButton.jsx";
+import EqGradientDefs from "./EqGradientDefs.jsx";
 import {
   SVG_WIDTH,
   SVG_HEIGHT,
@@ -140,43 +141,11 @@ const Controls = forwardRef(function Controls(
           preserveAspectRatio="none"
         >
           {/* SVG Defs for Gradients */}
-          <defs>
-            {frequencies.map((freq, index) => {
-              const isShelf = index === 2 || index === 12;
-              const nodeColor = isShelf ? COLORS.SHELF : COLORS.POINT;
-              const nodePos = getNodePosition(index);
-              const cy = nodePos.y;
-
-              // Gradient transitions from node color at peak (cy) to dark at center (250)
-              const y1 = Math.min(cy, CENTER_Y);
-              const y2 = Math.max(cy, CENTER_Y);
-
-              return (
-                <linearGradient
-                  key={`grad-${freq}`}
-                  id={`gradient-${index}`}
-                  x1="0%"
-                  y1={`${y1}`}
-                  x2="0%"
-                  y2={`${y2}`}
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop
-                    offset="0%"
-                    stopColor={
-                      cy < CENTER_Y ? nodeColor : `${COLORS.BACKGROUND}00`
-                    }
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor={
-                      cy < CENTER_Y ? `${COLORS.BACKGROUND}00` : nodeColor
-                    }
-                  />
-                </linearGradient>
-              );
-            })}
-          </defs>
+          <EqGradientDefs
+            frequencies={frequencies}
+            getNodePosition={getNodePosition}
+            colors={COLORS}
+          />
 
           {/* SPECTRUM VISUALIZER LINE */}
           <SpectrumLine
