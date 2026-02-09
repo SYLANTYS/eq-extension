@@ -15,6 +15,19 @@ import {
   FREQUENCIES,
 } from "../../lib/qCalculations.js";
 import { sendMessage, MSG } from "../../lib/chromeMessaging.js";
+import {
+  SVG_WIDTH,
+  SVG_HEIGHT,
+  CENTER_Y,
+  NODE_RADIUS,
+  X_AXIS_START,
+  X_AXIS_END,
+  USABLE_WIDTH,
+  GEOMETRIC_RATIO,
+  getBaseXPos,
+  getFrequencyFromXPos,
+  getXPosFromFrequency,
+} from "../../lib/svgCoordinateSystem.js";
 
 /**
  * Controls Component - Interactive EQ Visualizer
@@ -128,39 +141,12 @@ const Controls = forwardRef(function Controls(
   // Standard frequency bands used in audio processing
   const frequencies = FREQUENCIES;
 
-  // SVG Coordinate System:
-  // - Horizontal (X): 0-1000 units, 1Hz-21500Hz on log scale
-  // - Vertical (Y): 0-500 units, 0dB at center (250), -30dB at bottom, +30dB at top
-  // - Node radius: 7 units
-  const SVG_WIDTH = 1000;
-  const SVG_HEIGHT = 500;
-  const CENTER_Y = 250;
-  const NODE_RADIUS = 7;
-
-  const X_AXIS_START = 120; // Left padding for Y-axis labels
-  const X_AXIS_END = 15; // Right padding
-  const USABLE_WIDTH = SVG_WIDTH - X_AXIS_START - X_AXIS_END;
-  const GEOMETRIC_RATIO = 1.2; // Each frequency spacing is 1.2x wider
-
-  /**
-   * Get the base X position for a node by its index
-   * Uses geometric series scaling (1.2x spacing)
-   */
-  function getBaseXPos(index) {
-    const maxIndex = frequencies.length - 1;
-    return (
-      X_AXIS_START +
-      (USABLE_WIDTH * (Math.pow(GEOMETRIC_RATIO, index) - 1)) /
-        (Math.pow(GEOMETRIC_RATIO, maxIndex) - 1)
-    );
-  }
-
   /**
    * Get current position of a node including drag offset
    * Constrains node to stay within SVG viewbox (accounting for radius)
    */
   function getNodePosition(index) {
-    const baseX = getBaseXPos(index);
+    const baseX = getBaseXPos(index, frequencies);
     const pos = nodePositions[index] || { x: 0, y: 0 };
     const nodeX = baseX + pos.x;
     const nodeY = CENTER_Y + pos.y;
@@ -193,27 +179,7 @@ const Controls = forwardRef(function Controls(
     }
   }
 
-  /**
-   * Convert X position to frequency using inverse geometric series formula
-   * Ensures frequency values align perfectly with X-axis markings
-   */
-  function getFrequencyFromXPos(xPos) {
-    const minFreq = frequencies[0];
-    const maxFreq = frequencies[frequencies.length - 1];
-    const maxIndex = frequencies.length - 1;
 
-    // Normalize X position to [0, 1]
-    let normalized = (xPos - X_AXIS_START) / USABLE_WIDTH;
-    normalized = Math.max(0, Math.min(1, normalized)); // Clamp to avoid NaN
-
-    // Reverse geometric series formula
-    const denominator = Math.pow(GEOMETRIC_RATIO, maxIndex) - 1;
-    const ratioTerm = normalized * denominator + 1;
-    const indexFloat = Math.log(ratioTerm) / Math.log(GEOMETRIC_RATIO);
-
-    // Map to frequency using log scale
-    return minFreq * Math.pow(maxFreq / minFreq, indexFloat / maxIndex);
-  }
 
   /**
    * Handle mouse move during drag
@@ -275,13 +241,13 @@ const Controls = forwardRef(function Controls(
     }
 
     // Normal drag: update node position (frequency/gain)
-    const baseX = getBaseXPos(draggingNode);
+    const baseX = getBaseXPos(draggingNode, frequencies);
     const offsetX = mouseX - baseX;
     const offsetY = mouseY - CENTER_Y;
     const currentX = baseX + offsetX;
 
     // Calculate frequency and gain
-    let frequency = getFrequencyFromXPos(currentX);
+    let frequency = getFrequencyFromXPos(currentX, frequencies);
     frequency = Math.max(1, Math.min(21500, frequency));
 
     let gaindB = -(offsetY / SVG_HEIGHT) * 60;
@@ -318,16 +284,6 @@ const Controls = forwardRef(function Controls(
       newQValues,
       nodeBaseQValues,
     );
-
-    // Debug output with stored state values
-    // const filterType = isShelf ? "Shelf" : "Peaking";
-    // console.log(
-    //   `[Node ${draggingNode}] ${filterType} → Freq: ${frequency.toFixed(
-    //     2
-    //   )} Hz | Gain: ${gaindB.toFixed(2)} dB | Base Q: ${baseQ.toFixed(
-    //     2
-    //   )} | Q: ${Q.toFixed(2)}`
-    // );
   }
 
   /**
@@ -367,31 +323,6 @@ const Controls = forwardRef(function Controls(
   }
 
   /**
-   * Convert frequency value to X position on the logarithmic scale
-   * Uses the same geometric series formula as EQ nodes
-   */
-  function getXPosFromFrequency(frequency) {
-    const minFreq = frequencies[0]; // 5Hz
-    const maxFreq = frequencies[frequencies.length - 1]; // 20480Hz
-    const maxIndex = frequencies.length - 1;
-
-    // Clamp frequency to valid range
-    if (frequency < minFreq) frequency = minFreq;
-    if (frequency > maxFreq) frequency = maxFreq;
-
-    // Calculate position in log scale
-    const logFreqRatio =
-      Math.log(frequency / minFreq) / Math.log(maxFreq / minFreq);
-    const indexFloat = logFreqRatio * maxIndex;
-
-    // Map to X position using geometric series
-    const xRatio =
-      (Math.pow(GEOMETRIC_RATIO, indexFloat) - 1) /
-      (Math.pow(GEOMETRIC_RATIO, maxIndex) - 1);
-    return X_AXIS_START + xRatio * USABLE_WIDTH;
-  }
-
-  /**
    * Render spectrum analyzer as a high-resolution line graph
    * Uses all frequency bins for maximum accuracy
    * Maps entire frequency range (5Hz-20480Hz) to full viewbox width and height
@@ -428,7 +359,7 @@ const Controls = forwardRef(function Controls(
       } else if (binFrequency > frequencies[frequencies.length - 1]) {
         clampedFrequency = frequencies[frequencies.length - 1]; // Clamp to 20480Hz
       }
-      const xPos = getXPosFromFrequency(clampedFrequency);
+      const xPos = getXPosFromFrequency(clampedFrequency, frequencies);
 
       const magnitude = spectrumData[binIdx] || 0;
 
@@ -584,23 +515,13 @@ const Controls = forwardRef(function Controls(
 
           {/* X-AXIS: Frequency Bands with EQ Nodes */}
           {frequencies.map((freq, index) => {
-            const xPos = getBaseXPos(index);
+            const xPos = getBaseXPos(index, frequencies);
             const nodePos = getNodePosition(index);
             const bellCurvePath = generateBellCurve(
               index,
               nodePositions,
               nodeBaseQValues,
               frequencies,
-              SVG_WIDTH,
-              SVG_HEIGHT,
-              CENTER_Y,
-              X_AXIS_START,
-              X_AXIS_END,
-              USABLE_WIDTH,
-              GEOMETRIC_RATIO,
-              getBaseXPos,
-              getNodePosition,
-              getFrequencyFromXPos,
             );
 
             // Determine node type: shelf (index 2, 12) or mid-range EQ (index 3-11)

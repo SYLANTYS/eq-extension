@@ -4,7 +4,41 @@ import {
   DEFAULT_SHELF_Q,
   calculateQ,
   isShelfFilter,
+  FREQUENCIES,
 } from "./qCalculations.js";
+import {
+  SVG_WIDTH,
+  SVG_HEIGHT,
+  CENTER_Y,
+  X_AXIS_START,
+  X_AXIS_END,
+  USABLE_WIDTH,
+  GEOMETRIC_RATIO,
+  getBaseXPos,
+  getFrequencyFromXPos,
+} from "./svgCoordinateSystem.js";
+
+/**
+ * Get current position of a node including drag offset.
+ * Internal helper for generateBellCurve.
+ *
+ * @param {number} index - Node index
+ * @param {Object} nodePositions - Node positions { [index]: { x, y } }
+ * @param {number[]} frequencies - Reference frequency array
+ * @returns {{ x: number, y: number }} Constrained node position
+ */
+function getNodePosition(index, nodePositions, frequencies) {
+  const baseX = getBaseXPos(index, frequencies);
+  const pos = nodePositions[index] || { x: 0, y: 0 };
+  const nodeX = baseX + pos.x;
+  const nodeY = CENTER_Y + pos.y;
+
+  // Keep entire circle inside viewbox
+  const constrainedX = Math.max(3, Math.min(SVG_WIDTH - 3, nodeX));
+  const constrainedY = Math.max(3, Math.min(SVG_HEIGHT - 3, nodeY));
+
+  return { x: constrainedX, y: constrainedY };
+}
 
 /**
  * Generate SVG path for true parametric EQ filter response
@@ -17,24 +51,20 @@ import {
  * - Index 2: Lowshelf (20 Hz)
  * - Index 3-11: Peaking (mid-range EQ)
  * - Index 12: Highshelf (20.48 kHz)
+ *
+ * @param {number} index - Node index (0-12)
+ * @param {Object} nodePositions - Node positions { [index]: { x, y } }
+ * @param {Object} nodeBaseQValues - Base Q values { [index]: Q }
+ * @param {number[]} frequencies - Reference frequency array (defaults to FREQUENCIES)
+ * @returns {{ path: string, color: string } | null} SVG path and color, or null if no curve needed
  */
 export function generateBellCurve(
   index,
   nodePositions,
   nodeBaseQValues,
-  frequencies,
-  SVG_WIDTH,
-  SVG_HEIGHT,
-  CENTER_Y,
-  X_AXIS_START,
-  X_AXIS_END,
-  USABLE_WIDTH,
-  GEOMETRIC_RATIO,
-  getBaseXPos,
-  getNodePosition,
-  getFrequencyFromXPos,
+  frequencies = FREQUENCIES,
 ) {
-  const pos = getNodePosition(index);
+  const pos = getNodePosition(index, nodePositions, frequencies);
   const { x: cx, y: cy } = pos;
 
   // No curve when within ±5 pixels of center (250)
@@ -49,7 +79,7 @@ export function generateBellCurve(
   const gainDb = -(gainOffset / SVG_HEIGHT) * 60;
 
   // Derive center frequency from X position
-  const centerFreq = getFrequencyFromXPos(cx);
+  const centerFreq = getFrequencyFromXPos(cx, frequencies);
 
   // Compute amplitude and Q
   const A = Math.pow(10, gainDb / 40);

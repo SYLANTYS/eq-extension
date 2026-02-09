@@ -9,16 +9,15 @@ import {
   FREQUENCIES,
 } from "./qCalculations.js";
 import { sendMessage, MSG } from "./chromeMessaging.js";
+import {
+  SVG_HEIGHT,
+  getBaseXPos,
+  getXPosFromFrequency,
+  calculatePositionOffset,
+} from "./svgCoordinateSystem.js";
 
 // localStorage key for current EQ state
 const EQ_STATE_KEY = "eqCurrentState";
-
-// SVG coordinate system constants (shared with Controls.jsx)
-const SVG_HEIGHT = 500;
-const X_AXIS_START = 120;
-const X_AXIS_END = 15;
-const USABLE_WIDTH = 1000 - X_AXIS_START - X_AXIS_END;
-const GEOMETRIC_RATIO = 1.2;
 
 /**
  * Save current EQ node state to localStorage.
@@ -137,33 +136,13 @@ export function calculateNodePositions(
   frequencies = FREQUENCIES,
 ) {
   const positions = {};
-  const maxIndex = frequencies.length - 1;
 
   for (const indexStr in nodeFrequencyValues) {
     const index = parseInt(indexStr, 10);
     const freq = nodeFrequencyValues[index];
     const gainDb = nodeGainValues[index] ?? 0;
 
-    // Calculate X offset based on frequency
-    const baseX =
-      X_AXIS_START +
-      (USABLE_WIDTH * (Math.pow(GEOMETRIC_RATIO, index) - 1)) /
-        (Math.pow(GEOMETRIC_RATIO, maxIndex) - 1);
-
-    // Reverse frequency mapping to get X position
-    const minFreq = frequencies[0];
-    const maxFreq = frequencies[frequencies.length - 1];
-    const logRatio = Math.log(freq / minFreq) / Math.log(maxFreq / minFreq);
-    const indexFloat = logRatio * maxIndex;
-    const denominator = Math.pow(GEOMETRIC_RATIO, maxIndex) - 1;
-    const normalizedX =
-      (Math.pow(GEOMETRIC_RATIO, indexFloat) - 1) / denominator;
-    const currentX = X_AXIS_START + normalizedX * USABLE_WIDTH;
-
-    const offsetX = currentX - baseX;
-    const offsetY = -(gainDb / 60) * SVG_HEIGHT;
-
-    positions[index] = { x: offsetX, y: offsetY };
+    positions[index] = calculatePositionOffset(index, freq, gainDb, frequencies);
   }
 
   return positions;
