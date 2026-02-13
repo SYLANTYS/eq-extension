@@ -164,6 +164,11 @@ export default function Pro({
           {/* Bottom-right semicircle (background color) - mirrored 45 degree split */}
           <path d="M 100 0 A 50 50 0 0 0 0 100 Z" fill={bgColor} />
         </svg>
+        {index === 2 && isDisabled && (
+          <div className="absolute -top-5 -right-2 bg-emerald-600 text-xs font-bold px-1 py-0.5 rounded">
+            NEW
+          </div>
+        )}
       </button>
     );
   }

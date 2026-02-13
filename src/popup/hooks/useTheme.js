@@ -19,7 +19,7 @@ export const THEMES = [
   //monochrome or apple
   {
     BACKGROUND: "#F2F2F7",
-    TEXT: "#111111",
+    TEXT: "#4b4743",
     POINT: "#007AFF",
     SHELF: "#FF3B30",
   },
@@ -30,25 +30,25 @@ export const THEMES = [
     POINT: "#9AF0C8",
     SHELF: "#5B6EFF",
   },
-  //red and white
+  //red and white ferrari
   {
-    BACKGROUND: "#f1f0dc",
-    TEXT: "#8b1a1a",
-    POINT: "#ba3434",
-    SHELF: "#4a0000",
+    BACKGROUND: "#fcfad4",
+    TEXT: "#9b2a2a",
+    POINT: "#ed1c23",
+    SHELF: "#7a2020",
   },
   //purple gold
   {
     BACKGROUND: "#2a2436",
     TEXT: "#f2d9a6",
-    POINT: "#e6c27a",
+    POINT: "#E0115F",
     SHELF: "#7a4f9a",
   },
   //Hungary / Italy
   {
     BACKGROUND: "#7a1414",
     TEXT: "#F2F2F7",
-    POINT: "#2fbf5f",
+    POINT: "#3fef7f",
     SHELF: "#ffffff",
   },
 ];

@@ -24,7 +24,7 @@ export default defineConfig({
         // Copy background + content scripts
         copyFileSync(
           "src/background/background.js",
-          "dist/background/background.js"
+          "dist/background/background.js",
         );
 
         copyFileSync("src/content/content.js", "dist/content/content.js");
