@@ -142,7 +142,12 @@ export function calculateNodePositions(
     const freq = nodeFrequencyValues[index];
     const gainDb = nodeGainValues[index] ?? 0;
 
-    positions[index] = calculatePositionOffset(index, freq, gainDb, frequencies);
+    positions[index] = calculatePositionOffset(
+      index,
+      freq,
+      gainDb,
+      frequencies,
+    );
   }
 
   return positions;

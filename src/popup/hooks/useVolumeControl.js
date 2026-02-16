@@ -32,7 +32,7 @@ export function useVolumeControl(
         // At ratio=1 (top): gain≈3.162 (+10dB)
         let gain;
         if (ratio === 0) {
-          gain = 0;
+          gain = 0.0001; // Effectively mute
         } else {
           const db = -30 + ratio * 40;
           gain = Math.pow(10, db / 20);

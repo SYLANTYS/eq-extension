@@ -18,8 +18,8 @@ export const THEMES = [
   },
   //monochrome or apple
   {
-    BACKGROUND: "#F2F2F7",
-    TEXT: "#4b4743",
+    BACKGROUND: "#F7F7FC",
+    TEXT: "#3b3733",
     POINT: "#007AFF",
     SHELF: "#FF3B30",
   },
