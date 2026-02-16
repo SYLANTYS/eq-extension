@@ -28,18 +28,48 @@ const EQ_STATE_KEY = "eqCurrentState";
  * @param {Object} freqs - Frequency values in Hz { [index]: number }
  * @param {Object} qs - Q factor values { [index]: number }
  * @param {Object} baseQs - Base Q values before gain adjustment { [index]: number }
+ * @param {number} [volume] - Volume gain value (optional, preserves existing if omitted)
  */
-export function saveEqStateToLocalStorage(positions, gains, freqs, qs, baseQs) {
+export function saveEqStateToLocalStorage(
+  positions,
+  gains,
+  freqs,
+  qs,
+  baseQs,
+  volume,
+) {
+  // Preserve existing volume if not provided
+  if (volume === undefined) {
+    const existing = loadEqStateFromLocalStorage();
+    volume = existing?.volume ?? 1;
+  }
   const eqState = {
     nodePositions: positions,
     nodeGainValues: gains,
     nodeFrequencyValues: freqs,
     nodeQValues: qs,
     nodeBaseQValues: baseQs,
+    volume,
     timestamp: Date.now(),
   };
   localStorage.setItem(EQ_STATE_KEY, JSON.stringify(eqState));
   console.log("[eqStateUtils] EQ state saved to localStorage");
+}
+
+/**
+ * Save only the volume to localStorage, preserving existing EQ state.
+ * @param {number} volume - Volume gain value
+ */
+export function saveVolumeToLocalStorage(volume) {
+  try {
+    const stored = localStorage.getItem(EQ_STATE_KEY);
+    const eqState = stored ? JSON.parse(stored) : {};
+    eqState.volume = volume;
+    eqState.timestamp = Date.now();
+    localStorage.setItem(EQ_STATE_KEY, JSON.stringify(eqState));
+  } catch (e) {
+    console.warn("[eqStateUtils] Failed to save volume to localStorage:", e);
+  }
 }
 
 /**

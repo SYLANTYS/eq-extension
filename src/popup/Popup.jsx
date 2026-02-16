@@ -54,13 +54,12 @@ export default function Popup() {
 
   // Callback for bootstrap hook to set EQ state from localStorage
   function setEqStateFromLocalStorage(savedState, tabId) {
-    const {
-      nodePositions: savedPositions,
-      nodeGainValues: savedGains,
-      nodeFrequencyValues: savedFreqs,
-      nodeQValues: savedQs,
-      nodeBaseQValues: savedBaseQs,
-    } = savedState;
+    const savedPositions = savedState.nodePositions || {};
+    const savedGains = savedState.nodeGainValues || {};
+    const savedFreqs = savedState.nodeFrequencyValues || {};
+    const savedQs = savedState.nodeQValues || {};
+    const savedBaseQs = savedState.nodeBaseQValues || {};
+
     setNodePositions(savedPositions);
     setNodeGainValues(savedGains);
     setNodeFrequencyValues(savedFreqs);
@@ -251,6 +250,7 @@ export default function Popup() {
     resetAllEqState();
     setSelectedPreset(null);
     setPresetName("");
+    setVolumeState(1);
     clearEqStateFromLocalStorage();
 
     if (currentTabId) {
@@ -262,6 +262,11 @@ export default function Popup() {
         nodeGainValues: completeGainValues,
         nodeFrequencyValues: completeFreqValues,
         nodeQValues: completeQValues,
+      });
+      await sendMessage({
+        type: MSG.SET_VOLUME,
+        value: 1,
+        tabId: currentTabId,
       });
     }
   }

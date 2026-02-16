@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { sendMessage, MSG } from "../../lib/chromeMessaging.js";
+import { saveVolumeToLocalStorage } from "../../lib/eqStateUtils.js";
 
 /**
  * Hook for managing volume slider interaction.
@@ -45,6 +46,8 @@ export function useVolumeControl(
           value: gain,
           tabId: currentTabId,
         });
+        // Persist volume to localStorage
+        saveVolumeToLocalStorage(gain);
       }
 
       window.addEventListener("mousemove", move);

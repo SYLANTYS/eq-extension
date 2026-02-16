@@ -49,6 +49,12 @@ export function usePopupBootstrap(
 
       if (volumeStatus?.ok && volumeStatus?.gain) {
         setVolumeState(volumeStatus.gain);
+      } else {
+        // Fallback: load volume from localStorage
+        const savedState = loadEqStateFromLocalStorage();
+        if (savedState?.volume !== undefined) {
+          setVolumeState(savedState.volume);
+        }
       }
 
       if (cancelled) return;
@@ -118,6 +124,15 @@ export function usePopupBootstrap(
         const savedState = loadEqStateFromLocalStorage();
         if (savedState) {
           setEqStateFromLocalStorage(savedState, tab.id);
+          // Also restore volume from localStorage if available
+          if (savedState.volume !== undefined) {
+            setVolumeState(savedState.volume);
+            sendMessage({
+              type: MSG.SET_VOLUME,
+              value: savedState.volume,
+              tabId: tab.id,
+            });
+          }
         }
       }
     }
