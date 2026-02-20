@@ -186,12 +186,14 @@ export default function Pro({
             disabled={loading}
             className="py-1 px-3 rounded text-xs font-semibold hover:opacity-90 cursor-pointer"
             style={{
-              backgroundColor: loading ? COLORS.TEXT + "66" : COLORS.POINT,
-              color: COLORS.BACKGROUND,
+              backgroundColor: loading
+                ? COLORS.TEXT + "66"
+                : COLORS.TEXT + "22",
+              color: COLORS.TEXT,
               cursor: loading ? "not-allowed" : "pointer",
             }}
           >
-            {loading ? "Logging in..." : "Login with Google"}
+            {loading ? "Logging in..." : "Login"}
           </button>
           <a
             href="https://airs-audio-system.vercel.app/"
@@ -199,8 +201,8 @@ export default function Pro({
             rel="noopener noreferrer"
             className="py-1 px-3 rounded text-xs font-semibold hover:opacity-90 cursor-pointer"
             style={{
-              backgroundColor: COLORS.TEXT + "22",
-              color: COLORS.TEXT,
+              backgroundColor: COLORS.POINT,
+              color: COLORS.BACKGROUND,
               textDecoration: "none",
             }}
           >
@@ -224,7 +226,7 @@ export default function Pro({
 
         {/* Theme Color Picker */}
         <div className="mb-6">
-          <p className="text-base mb-4 font-semibold">Select Theme:</p>
+          <p className="text-base mb-5 font-semibold">Select Theme:</p>
           <div className="flex gap-4 justify-center flex-wrap">
             {themes.map((theme, index) => renderThemeCircle(index, theme))}
           </div>
@@ -239,16 +241,44 @@ export default function Pro({
           </div>
         )}
         {isLoggedIn && !isProUser && (
-          <div className="mb-4">
-            <p className="text-sm" style={{ color: COLORS.TEXT }}>
+          <div>
+            <p className="text-sm mb-2" style={{ color: COLORS.TEXT }}>
               <i>Free Account - Upgrade to unlock premium themes.</i>
             </p>
+            <a
+              href="https://airs-audio-system.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-1 px-3 rounded text-xs font-semibold hover:opacity-90 cursor-pointer"
+              style={{
+                backgroundColor: COLORS.POINT,
+                color: COLORS.BACKGROUND,
+                textDecoration: "none",
+              }}
+            >
+              Get Airs Pro
+            </a>
           </div>
         )}
         {!isLoggedIn && (
-          <p className="text-sm">
-            <i>Upgrade to unlock premium themes.</i>
-          </p>
+          <div>
+            <p className="text-sm mb-2">
+              <i>Upgrade to unlock premium themes.</i>
+            </p>
+            <a
+              href="https://airs-audio-system.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-1 px-3 rounded text-xs font-semibold hover:opacity-90 cursor-pointer"
+              style={{
+                backgroundColor: COLORS.POINT,
+                color: COLORS.BACKGROUND,
+                textDecoration: "none",
+              }}
+            >
+              Get Airs Pro
+            </a>
+          </div>
         )}
       </div>
     </div>

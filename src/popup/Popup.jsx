@@ -593,7 +593,7 @@ export default function Popup() {
               target="_blank"
               rel="noreferrer"
             >
-              ☕<u>Buy Me a Coffee</u>☕
+              <u>Support Airs with a Coffee</u>☕
             </a>
           </div>
 
