@@ -475,7 +475,7 @@ export default function Popup() {
                 backgroundColor: COLORS.BACKGROUND,
                 color: COLORS.TEXT,
               }}
-              className="border rounded-xs text-sm w-20 outline-none placeholder-opacity-50"
+              className="border rounded-xs text-sm w-22 outline-none placeholder-opacity-50"
             />
 
             <button
@@ -557,6 +557,34 @@ export default function Popup() {
               onMouseLeave={() => setHoveredButton(null)}
             >
               Bass Boost
+            </button>
+
+            <button
+            style={{
+                borderColor: COLORS.TEXT,
+                ...(hoveredButton === "export"
+                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                  : {}),
+              }}
+              className="px-1.5 cursor-pointer border rounded-xs"
+              onMouseEnter={() => setHoveredButton("export")}
+              onMouseLeave={() => setHoveredButton(null)}
+              >
+              Export
+            </button>
+
+            <button
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(hoveredButton === "import"
+                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                  : {}),
+              }}
+              className="px-1.5 cursor-pointer border rounded-xs"
+              onMouseEnter={() => setHoveredButton("import")}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              Import
             </button>
           </div>
         </div>
