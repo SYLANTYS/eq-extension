@@ -242,7 +242,7 @@ export default function Pro({
         )}
         {isLoggedIn && !isProUser && (
           <div>
-            <p className="text-sm mb-2" style={{ color: COLORS.TEXT }}>
+            <p className="text-sm mb-3" style={{ color: COLORS.TEXT }}>
               <i>Free Account - Upgrade to unlock premium themes.</i>
             </p>
             <a
@@ -262,7 +262,7 @@ export default function Pro({
         )}
         {!isLoggedIn && (
           <div>
-            <p className="text-sm mb-2">
+            <p className="text-sm mb-3">
               <i>Upgrade to unlock premium themes.</i>
             </p>
             <a

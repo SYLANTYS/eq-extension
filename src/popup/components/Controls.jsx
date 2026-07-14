@@ -147,6 +147,14 @@ function Controls({
                   stroke={COLORS.TEXT}
                   strokeWidth="1"
                 />
+                <line
+                  x1="50"
+                  y1={yPos}
+                  x2="1000"
+                  y2={yPos}
+                  stroke={`${COLORS.TEXT}10`}
+                  strokeWidth="1"
+                />
                 <text
                   x="12"
                   y={yPos + 4}
