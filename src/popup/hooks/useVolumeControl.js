@@ -8,7 +8,8 @@ import { saveVolumeToLocalStorage } from "../../lib/eqStateUtils.js";
  * @param {function} throttledEnsureBackend - Throttled backend ready function
  * @param {function} setVolumeState - Volume state setter from bootstrap hook
  * @returns {{
- *   handleVolumeStart: function
+ *   handleVolumeStart: function,
+ *   handleVolumeDoubleClick: function
  * }}
  */
 export function useVolumeControl(
@@ -60,7 +61,25 @@ export function useVolumeControl(
     [currentTabId, throttledEnsureBackend, setVolumeState],
   );
 
+  // Reset volume to unity gain (0 dB).
+  const handleVolumeDoubleClick = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      throttledEnsureBackend();
+      setVolumeState(1);
+      sendMessage({
+        type: MSG.SET_VOLUME,
+        value: 1,
+        tabId: currentTabId,
+      });
+      saveVolumeToLocalStorage(1);
+    },
+    [currentTabId, throttledEnsureBackend, setVolumeState],
+  );
+
   return {
     handleVolumeStart,
+    handleVolumeDoubleClick,
   };
 }

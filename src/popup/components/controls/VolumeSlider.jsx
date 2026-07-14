@@ -21,9 +21,15 @@ function getSliderPosition(gain) {
  * @param {Object} props
  * @param {number} props.volume - Current volume (linear gain 0-1+)
  * @param {Function} props.onVolumeStart - Handler for mousedown to start drag
+ * @param {Function} props.onVolumeDoubleClick - Handler for double-click reset
  * @param {Object} props.colors - Theme colors { TEXT }
  */
-export default function VolumeSlider({ volume, onVolumeStart, colors }) {
+export default function VolumeSlider({
+  volume,
+  onVolumeStart,
+  onVolumeDoubleClick,
+  colors,
+}) {
   return (
     <div className="flex flex-col items-center select-none">
       <div className="text-xs mb-2 select-none">volume</div>
@@ -33,6 +39,7 @@ export default function VolumeSlider({ volume, onVolumeStart, colors }) {
           backgroundColor: `${colors.TEXT}80`,
         }}
         onMouseDown={onVolumeStart}
+        onDoubleClick={onVolumeDoubleClick}
       >
         <div
           className="absolute w-9 h-1.5 -left-4.25 cursor-pointer"

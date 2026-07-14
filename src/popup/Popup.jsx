@@ -107,7 +107,7 @@ export default function Popup() {
     );
 
   // Volume control hook - needs currentTabId from bootstrap
-  const { handleVolumeStart } = useVolumeControl(
+  const { handleVolumeStart, handleVolumeDoubleClick } = useVolumeControl(
     currentTabId,
     throttledEnsureBackend,
     setVolumeState,
@@ -433,6 +433,7 @@ export default function Popup() {
           <Controls
             volume={volume}
             onVolumeStart={handleVolumeStart}
+            onVolumeDoubleClick={handleVolumeDoubleClick}
             nodePositions={nodePositions}
             nodeGainValues={nodeGainValues}
             nodeFrequencyValues={nodeFrequencyValues}

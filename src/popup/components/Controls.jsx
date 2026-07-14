@@ -30,6 +30,7 @@ import {
  * Props:
  * - volume: master volume gain (0-1+)
  * - onVolumeStart: handler for volume slider mousedown
+ * - onVolumeDoubleClick: handler for resetting volume to unity gain
  * - nodePositions: { [index]: { x, y } } - draggable node positions
  * - nodeGainValues: { [index]: dB } - gain values from Web Audio API
  * - nodeFrequencyValues: { [index]: Hz } - frequency values from Web Audio API
@@ -42,6 +43,7 @@ import {
 function Controls({
   volume,
   onVolumeStart,
+  onVolumeDoubleClick,
   nodePositions,
   nodeGainValues,
   nodeFrequencyValues,
@@ -103,6 +105,7 @@ function Controls({
         <VolumeSlider
           volume={volume}
           onVolumeStart={onVolumeStart}
+          onVolumeDoubleClick={onVolumeDoubleClick}
           colors={COLORS}
         />
       </aside>
