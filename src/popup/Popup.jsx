@@ -193,6 +193,23 @@ export default function Popup() {
     }
   }
 
+  function handleExportPresets() {
+    if (savedPresets.length === 0) return;
+
+    const file = new Blob([JSON.stringify(savedPresets, null, 2)], {
+      type: "application/json",
+    });
+    const downloadUrl = URL.createObjectURL(file);
+    const downloadLink = document.createElement("a");
+
+    downloadLink.href = downloadUrl;
+    downloadLink.download = "airs-presets.json";
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    URL.revokeObjectURL(downloadUrl);
+  }
+
   // Delete currently selected preset and reset all EQ filters
   async function handleDeletePreset() {
     if (!selectedPreset) {
@@ -586,6 +603,7 @@ export default function Popup() {
             </button>
 
             <button
+              onClick={handleExportPresets}
             style={{
                 borderColor: COLORS.TEXT,
                 ...(hoveredButton === "export"

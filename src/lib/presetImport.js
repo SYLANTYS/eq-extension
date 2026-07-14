@@ -1,6 +1,88 @@
 import { getDefaultEqValues } from "./eqStateUtils.js";
 
-export function convertImportedPresets(data) {
+function isValueObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value);
+}
+
+function copyNativeValues(values, defaults, presetName, fieldName) {
+  if (!isValueObject(values)) {
+    throw new Error(`Preset "${presetName}" has an invalid ${fieldName}`);
+  }
+
+  const copiedValues = { ...defaults };
+  for (const [index, value] of Object.entries(values)) {
+    if (!/^(?:[0-9]|1[0-2])$/.test(index) || !Number.isFinite(value)) {
+      throw new Error(
+        `Preset "${presetName}" has an invalid ${fieldName} value`,
+      );
+    }
+    copiedValues[index] = value;
+  }
+
+  return copiedValues;
+}
+
+function convertNativePresets(data) {
+  if (data.length === 0) {
+    throw new Error("Preset file is empty");
+  }
+
+  const presetNames = new Set();
+
+  return data.map((preset, presetIndex) => {
+    if (
+      !isValueObject(preset) ||
+      typeof preset.name !== "string" ||
+      !preset.name.trim()
+    ) {
+      throw new Error("Invalid Airs preset entry");
+    }
+
+    if (presetNames.has(preset.name)) {
+      throw new Error(`Duplicate preset name "${preset.name}"`);
+    }
+    presetNames.add(preset.name);
+
+    const hasTimestamp = Object.prototype.hasOwnProperty.call(
+      preset,
+      "timestamp",
+    );
+    if (hasTimestamp && !Number.isFinite(preset.timestamp)) {
+      throw new Error(`Preset "${preset.name}" has an invalid timestamp`);
+    }
+
+    const {
+      completeGainValues,
+      completeFreqValues,
+      completeBaseQValues,
+    } = getDefaultEqValues();
+
+    return {
+      name: preset.name,
+      nodeGainValues: copyNativeValues(
+        preset.nodeGainValues,
+        completeGainValues,
+        preset.name,
+        "gain",
+      ),
+      nodeFrequencyValues: copyNativeValues(
+        preset.nodeFrequencyValues,
+        completeFreqValues,
+        preset.name,
+        "frequency",
+      ),
+      nodeBaseQValues: copyNativeValues(
+        preset.nodeBaseQValues,
+        completeBaseQValues,
+        preset.name,
+        "base Q",
+      ),
+      timestamp: hasTimestamp ? preset.timestamp : Date.now() + presetIndex,
+    };
+  });
+}
+
+function convertOnlinePresets(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new Error("Preset file must contain an object");
   }
@@ -74,4 +156,10 @@ export function convertImportedPresets(data) {
       timestamp: Date.now() + presetIndex,
     };
   });
+}
+
+export function convertImportedPresets(data) {
+  return Array.isArray(data)
+    ? convertNativePresets(data)
+    : convertOnlinePresets(data);
 }
