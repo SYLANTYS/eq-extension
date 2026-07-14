@@ -43,8 +43,9 @@ export function useNodeDrag({
   onEnsureBackend,
 }) {
   const [draggingNode, setDraggingNode] = useState(null);
-  const [isShiftDrag, setIsShiftDrag] = useState(false);
+  const isShiftDragRef = useRef(false);
   const shiftDragStartYRef = useRef(null);
+  const shiftDragStartBaseQRef = useRef(null);
 
   /**
    * Initiate node drag
@@ -54,20 +55,11 @@ export function useNodeDrag({
       e.preventDefault();
       onEnsureBackend?.();
       setDraggingNode(index);
-      setIsShiftDrag(e.shiftKey);
-      if (e.shiftKey) {
-        // For shift drag, capture starting Y position
-        const svg = svgRef.current;
-        if (svg) {
-          const rect = svg.getBoundingClientRect();
-          const svgRect = svg.viewBox.baseVal;
-          const scaleY = svgRect.height / rect.height;
-          const mouseY = (e.clientY - rect.top) * scaleY;
-          shiftDragStartYRef.current = mouseY;
-        }
-      }
+      isShiftDragRef.current = false;
+      shiftDragStartYRef.current = null;
+      shiftDragStartBaseQRef.current = null;
     },
-    [svgRef, onEnsureBackend],
+    [onEnsureBackend],
   );
 
   /**
@@ -91,11 +83,20 @@ export function useNodeDrag({
       const mouseX = (e.clientX - rect.left) * scaleX;
       const mouseY = (e.clientY - rect.top) * scaleY;
 
-      if (isShiftDrag) {
+      if (e.shiftKey || isShiftDragRef.current) {
+        if (!isShiftDragRef.current) {
+          const isShelf = isShelfFilter(draggingNode);
+          isShiftDragRef.current = true;
+          shiftDragStartYRef.current = mouseY;
+          shiftDragStartBaseQRef.current =
+            nodeBaseQValues[draggingNode] ??
+            (isShelf ? DEFAULT_SHELF_Q : DEFAULT_PEAKING_Q);
+        }
+
         // Shift+drag: Adjust base Q value based on vertical movement (0.1 to 2.0)
         const logMin = Math.log(0.1);
         const logMax = Math.log(2.0);
-        const logCenter = Math.log(DEFAULT_PEAKING_Q);
+        const logCenter = Math.log(shiftDragStartBaseQRef.current);
 
         const startY = shiftDragStartYRef.current ?? mouseY;
         const qOffsetRatio = (startY - mouseY) / (SVG_HEIGHT / 3);
@@ -173,7 +174,6 @@ export function useNodeDrag({
     },
     [
       draggingNode,
-      isShiftDrag,
       svgRef,
       frequencies,
       nodePositions,
@@ -190,8 +190,9 @@ export function useNodeDrag({
    */
   const handleMouseUp = useCallback(() => {
     setDraggingNode(null);
-    setIsShiftDrag(false);
+    isShiftDragRef.current = false;
     shiftDragStartYRef.current = null;
+    shiftDragStartBaseQRef.current = null;
   }, []);
 
   /**
