@@ -118,25 +118,26 @@ export default function Popup() {
 
   // ============== EQ CONTROL ==============
 
-  // Start EQ processing and reset filters
+  // Start EQ processing and restore the retained settings to the new graph
   async function handleStartEq() {
-    const res = await sendMessage({ type: MSG.START_EQ, tabId: currentTabId });
+    const res = await sendMessage({
+      type: MSG.START_EQ,
+      tabId: currentTabId,
+      nodeGainValues,
+      nodeFrequencyValues,
+      nodeQValues,
+      volume,
+    });
     if (res?.ok) {
       setEqActive(true);
-      setVolumeState(1);
-      resetAllEqState();
-      await handleResetFilters();
     }
   }
 
-  // Stop EQ processing and reset filters
+  // Stop EQ processing without changing the retained settings
   async function handleStopEq() {
     const res = await sendMessage({ type: MSG.STOP_EQ, tabId: currentTabId });
     if (res?.ok) {
       setEqActive(false);
-      setVolumeState(1);
-      resetAllEqState();
-      await handleResetFilters();
     }
   }
 

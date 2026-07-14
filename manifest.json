@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Airs Audio - Bass Booster & Equalizer",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "EQ any audio you find on the web in real time with a powerful audio equalizer and bass booster designed for precise sound control.",
   "action": {
     "default_popup": "popup/index.html"

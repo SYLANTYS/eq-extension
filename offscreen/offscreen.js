@@ -137,12 +137,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const eqFilters = createEqFilters(audioContext);
         const analyserNode = audioContext.createAnalyser();
 
+        // Apply retained settings before connecting the graph so playback
+        // starts with the requested EQ response and volume already active.
+        for (let i = 0; i < eqFilters.length; i++) {
+          const filter = eqFilters[i];
+          const frequency = msg.nodeFrequencyValues?.[i];
+          const q = msg.nodeQValues?.[i];
+          const gain = msg.nodeGainValues?.[i];
+
+          if (Number.isFinite(frequency)) filter.frequency.value = frequency;
+          if (Number.isFinite(q)) filter.Q.value = q;
+          if (Number.isFinite(gain)) filter.gain.value = gain;
+        }
+
         // Configure analyser for spectrum data
         analyserNode.fftSize = 2048; // Higher FFT size for better frequency resolution
         analyserNode.smoothingTimeConstant = 0.85;
 
-        // Unity gain by default (no volume change)
-        gainNode.gain.value = 1.0;
+        // Retain the requested volume, falling back to unity gain.
+        gainNode.gain.value = Number.isFinite(msg.volume) ? msg.volume : 1.0;
 
         // Connect: source → eqFilters (series) → gain → destination + analyser
         connectEqChain(

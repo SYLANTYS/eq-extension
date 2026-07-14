@@ -109,7 +109,7 @@ function sendToOffscreen(msg) {
 // 1) Ensures offscreen exists (shared across all tabs)
 // 2) Requests a tab audio stream ID
 // 3) Delegates audio initialization to offscreen for this tabId
-async function startEqForTab(tabId) {
+async function startEqForTab(tabId, initialState = {}) {
   // Prevent re-entrancy / race conditions per tab
   if (startingTabs.has(tabId)) return { ok: true, alreadyStarting: true };
   startingTabs.add(tabId);
@@ -143,15 +143,21 @@ async function startEqForTab(tabId) {
       type: "INIT_AUDIO",
       streamId,
       tabId,
+      nodeGainValues: initialState.nodeGainValues,
+      nodeFrequencyValues: initialState.nodeFrequencyValues,
+      nodeQValues: initialState.nodeQValues,
+      volume: initialState.volume,
     });
 
     console.log("[BG] Offscreen INIT_AUDIO ack for tab", tabId, ":", res);
 
     if (res?.ok) {
       eqSessions.get(tabId).status = "active";
+      return res;
     }
 
-    return { ok: true };
+    eqSessions.delete(tabId);
+    return res ?? { ok: false, error: "Offscreen initialization failed" };
   } catch (e) {
     console.warn("[BG] startEqForTab failed:", e);
     eqSessions.delete(tabId);
@@ -243,7 +249,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === "START_EQ") {
     (async () => {
       const tabId = msg.tabId;
-      const result = await startEqForTab(tabId);
+      const result = await startEqForTab(tabId, {
+        nodeGainValues: msg.nodeGainValues,
+        nodeFrequencyValues: msg.nodeFrequencyValues,
+        nodeQValues: msg.nodeQValues,
+        volume: msg.volume,
+      });
       sendResponse(result);
     })();
     return true; // keep message port open
