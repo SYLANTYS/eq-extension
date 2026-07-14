@@ -66,17 +66,18 @@ function Controls({
   const { spectrumEnabled, toggleSpectrum } = useSpectrumToggle();
 
   // Node drag hook
-  const { draggingNode, handleNodeMouseDown } = useNodeDrag({
-    svgRef,
-    frequencies,
-    nodePositions,
-    nodeGainValues,
-    nodeFrequencyValues,
-    nodeQValues,
-    nodeBaseQValues,
-    onEqNodesChange,
-    onEnsureBackend,
-  });
+  const { draggingNode, handleNodeMouseDown, handleNodeDoubleClick } =
+    useNodeDrag({
+      svgRef,
+      frequencies,
+      nodePositions,
+      nodeGainValues,
+      nodeFrequencyValues,
+      nodeQValues,
+      nodeBaseQValues,
+      onEqNodesChange,
+      onEnsureBackend,
+    });
 
   /**
    * Get current position of a node including drag offset
@@ -264,6 +265,7 @@ function Controls({
                     strokeWidth={draggingNode === index ? "2" : "1"}
                     className="cursor-pointer"
                     onMouseDown={(e) => handleNodeMouseDown(index, e)}
+                    onDoubleClick={(e) => handleNodeDoubleClick(index, e)}
                   />
                 )}
               </g>

@@ -29,7 +29,7 @@ import {
  * @param {Object} options.nodeBaseQValues - Current base Q values
  * @param {Function} options.onEqNodesChange - Callback when EQ values change
  * @param {Function} options.onEnsureBackend - Callback to ensure backend is ready
- * @returns {{ draggingNode: number|null, handleNodeMouseDown: Function }}
+ * @returns {{ draggingNode: number|null, handleNodeMouseDown: Function, handleNodeDoubleClick: Function }}
  */
 export function useNodeDrag({
   svgRef,
@@ -60,6 +60,55 @@ export function useNodeDrag({
       shiftDragStartBaseQRef.current = null;
     },
     [onEnsureBackend],
+  );
+
+  /**
+   * Reset one node without changing the rest of the EQ state.
+   */
+  const handleNodeDoubleClick = useCallback(
+    (index, e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onEnsureBackend?.();
+
+      const defaultBaseQ = isShelfFilter(index)
+        ? DEFAULT_SHELF_Q
+        : DEFAULT_PEAKING_Q;
+      const defaultQ = calculateQ(index, defaultBaseQ, 0);
+
+      onEqNodesChange(
+        {
+          ...nodePositions,
+          [index]: { x: 0, y: 0 },
+        },
+        {
+          ...nodeGainValues,
+          [index]: 0,
+        },
+        {
+          ...nodeFrequencyValues,
+          [index]: frequencies[index],
+        },
+        {
+          ...nodeQValues,
+          [index]: defaultQ,
+        },
+        {
+          ...nodeBaseQValues,
+          [index]: defaultBaseQ,
+        },
+      );
+    },
+    [
+      frequencies,
+      nodePositions,
+      nodeGainValues,
+      nodeFrequencyValues,
+      nodeQValues,
+      nodeBaseQValues,
+      onEqNodesChange,
+      onEnsureBackend,
+    ],
   );
 
   /**
@@ -214,5 +263,6 @@ export function useNodeDrag({
   return {
     draggingNode,
     handleNodeMouseDown,
+    handleNodeDoubleClick,
   };
 }
