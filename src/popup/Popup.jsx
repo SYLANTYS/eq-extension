@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Controls from "./components/Controls";
 import Guide from "./components/Guide";
 import ActiveTabs from "./components/ActiveTabs";
@@ -18,6 +18,7 @@ import { useTheme } from "./hooks/useTheme.js";
 import { useVolumeControl } from "./hooks/useVolumeControl.js";
 import { useSpectrumData } from "./hooks/useSpectrumData.js";
 import { usePopupBootstrap } from "./hooks/usePopupBootstrap.js";
+import { convertImportedPresets } from "../lib/presetImport.js";
 
 export default function Popup() {
   const [activeTab, setActiveTab] = useState("Controls");
@@ -38,6 +39,7 @@ export default function Popup() {
   const [presetName, setPresetName] = useState("");
   const [savedPresets, setSavedPresets] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState(null);
+  const importFileInputRef = useRef(null);
 
   // ============== STATE INITIALIZATION ==============
 
@@ -165,6 +167,30 @@ export default function Popup() {
     setSavedPresets(updatedPresets);
     setPresetName("");
     // alert(`Preset "${presetName}" saved!`);
+  }
+
+  async function handleImportPresets(e) {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+      const importedPresets = convertImportedPresets(
+        JSON.parse(await file.text()),
+      );
+      const importedNames = new Set(importedPresets.map((preset) => preset.name));
+      const updatedPresets = [
+        ...savedPresets.filter((preset) => !importedNames.has(preset.name)),
+        ...importedPresets,
+      ];
+
+      localStorage.setItem("eqPresets", JSON.stringify(updatedPresets));
+      setSavedPresets(updatedPresets);
+    } catch (error) {
+      console.warn("[Popup] Preset import failed:", error);
+    } finally {
+      input.value = "";
+    }
   }
 
   // Delete currently selected preset and reset all EQ filters
@@ -573,7 +599,16 @@ export default function Popup() {
               Export
             </button>
 
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleImportPresets}
+            />
+
             <button
+              onClick={() => importFileInputRef.current?.click()}
               style={{
                 borderColor: COLORS.TEXT,
                 ...(hoveredButton === "import"
