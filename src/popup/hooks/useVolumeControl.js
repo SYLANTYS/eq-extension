@@ -28,15 +28,19 @@ export function useVolumeControl(
         const y = ev.clientY - rect.top + 3;
         const ratio = 1 - Math.min(Math.max(y / rect.height, 0), 1);
 
-        // Map ratio [0, 1] to dB [-30, 10]
+        // Map ratio [0, 1] to dB [-30, 30], keeping 0 dB at 75%.
+        // This preserves the 3:1 slider space below and above unity gain.
         // At ratio=0 (bottom): gain=0
         // At ratio=0.75 (3/4 up): gain=1 (0dB)
-        // At ratio=1 (top): gain≈3.162 (+10dB)
+        // At ratio=1 (top): gain≈31.623 (+30dB)
         let gain;
         if (ratio === 0) {
           gain = 0.0001; // Effectively mute
         } else {
-          const db = -30 + ratio * 40;
+          const db =
+            ratio <= 0.75
+              ? -30 + (ratio / 0.75) * 30
+              : ((ratio - 0.75) / 0.25) * 30;
           gain = Math.pow(10, db / 20);
         }
 

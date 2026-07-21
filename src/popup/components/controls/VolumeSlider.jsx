@@ -3,7 +3,8 @@
 
 /**
  * Convert linear gain value to slider position.
- * Maps gain range (-30 to +10 dB) to visual position (0-100%).
+ * Maps gain range (-30 to +30 dB) to visual position (0-100%),
+ * keeping 0 dB at 75% for a 3:1 slider-space ratio.
  *
  * @param {number} gain - Linear gain value (0-1+)
  * @returns {number} Slider position as percentage (0-100)
@@ -11,7 +12,7 @@
 function getSliderPosition(gain) {
   if (gain === 0) return 0;
   const db = 20 * Math.log10(gain);
-  const ratio = (db + 30) / 40;
+  const ratio = db <= 0 ? ((db + 30) / 30) * 0.75 : 0.75 + (db / 30) * 0.25;
   return Math.min(Math.max(ratio, 0), 1) * 100;
 }
 
