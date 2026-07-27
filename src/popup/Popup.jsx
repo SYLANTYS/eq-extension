@@ -39,7 +39,29 @@ export default function Popup() {
   const [presetName, setPresetName] = useState("");
   const [savedPresets, setSavedPresets] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState(null);
+  const [presetsWrapped, setPresetsWrapped] = useState(false);
   const importFileInputRef = useRef(null);
+  const presetButtonsRef = useRef(null);
+
+  useEffect(() => {
+    const container = presetButtonsRef.current;
+    if (!container) return;
+
+    function updatePresetsWrapped() {
+      const buttons = Array.from(container.querySelectorAll("button"));
+      const rowPositions = new Set(buttons.map((button) => button.offsetTop));
+      setPresetsWrapped(rowPositions.size > 1);
+    }
+
+    const resizeObserver = new ResizeObserver(updatePresetsWrapped);
+    resizeObserver.observe(container);
+    const animationFrame = requestAnimationFrame(updatePresetsWrapped);
+
+    return () => {
+      resizeObserver.disconnect();
+      cancelAnimationFrame(animationFrame);
+    };
+  }, []);
 
   // ============== STATE INITIALIZATION ==============
 
@@ -568,7 +590,10 @@ export default function Popup() {
           </div>
 
           {/* Saved Presets + Quick Presets Row (right aligned) */}
-          <div className="flex flex-row-reverse justify-start gap-2 mt-3 flex-wrap">
+          <div
+            ref={presetButtonsRef}
+            className="flex flex-row-reverse justify-start gap-2 mt-3 flex-wrap"
+          >
             <button
               onClick={() => importFileInputRef.current?.click()}
               style={{
@@ -651,7 +676,7 @@ export default function Popup() {
         }}
       >
         {/* Centered primary action */}
-        <div className="flex justify-center mb-5">
+        <div className="relative flex justify-center mb-5">
           <button
             onClick={eqActive ? handleStopEq : handleStartEq}
             style={{
@@ -666,6 +691,15 @@ export default function Popup() {
           >
             {eqActive ? "Stop EQing This Tab" : "Start EQing This Tab"}
           </button>
+
+          {presetsWrapped && (
+            <span
+              role="status"
+              className="absolute right-0 top-1/2 -translate-y-1/2 whitespace-nowrap italic opacity-80"
+            >
+              Scroll to see your latest presets
+            </span>
+          )}
         </div>
 
         {/* Bottom row */}
