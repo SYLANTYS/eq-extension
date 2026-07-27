@@ -568,24 +568,44 @@ export default function Popup() {
           </div>
 
           {/* Saved Presets + Quick Presets Row (right aligned) */}
-          <div className="flex justify-end gap-2 mt-3 flex-wrap">
-            {[...savedPresets].reverse().map((preset) => (
-              <button
-                key={preset.name}
-                onClick={() => handleLoadPreset(preset.name)}
-                style={{
-                  borderColor: COLORS.TEXT,
-                  ...(hoveredButton === `preset-${preset.name}`
-                    ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
-                    : {}),
-                }}
-                className="px-1.5 cursor-pointer border rounded-xs"
-                onMouseEnter={() => setHoveredButton(`preset-${preset.name}`)}
-                onMouseLeave={() => setHoveredButton(null)}
-              >
-                {preset.name}
-              </button>
-            ))}
+          <div className="flex flex-row-reverse justify-start gap-2 mt-3 flex-wrap">
+            <button
+              onClick={() => importFileInputRef.current?.click()}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(hoveredButton === "import"
+                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                  : {}),
+              }}
+              className="px-1.5 cursor-pointer border rounded-xs"
+              onMouseEnter={() => setHoveredButton("import")}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              Import
+            </button>
+
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleImportPresets}
+            />
+
+            <button
+              onClick={handleExportPresets}
+              style={{
+                borderColor: COLORS.TEXT,
+                ...(hoveredButton === "export"
+                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                  : {}),
+              }}
+              className="px-1.5 cursor-pointer border rounded-xs"
+              onMouseEnter={() => setHoveredButton("export")}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              Export
+            </button>
 
             <button
               onClick={handleBassBoost}
@@ -602,43 +622,23 @@ export default function Popup() {
               Bass Boost
             </button>
 
-            <button
-              onClick={handleExportPresets}
-            style={{
-                borderColor: COLORS.TEXT,
-                ...(hoveredButton === "export"
-                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
-                  : {}),
-              }}
-              className="px-1.5 cursor-pointer border rounded-xs"
-              onMouseEnter={() => setHoveredButton("export")}
-              onMouseLeave={() => setHoveredButton(null)}
+            {savedPresets.map((preset) => (
+              <button
+                key={preset.name}
+                onClick={() => handleLoadPreset(preset.name)}
+                style={{
+                  borderColor: COLORS.TEXT,
+                  ...(hoveredButton === `preset-${preset.name}`
+                    ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
+                    : {}),
+                }}
+                className="px-1.5 cursor-pointer border rounded-xs"
+                onMouseEnter={() => setHoveredButton(`preset-${preset.name}`)}
+                onMouseLeave={() => setHoveredButton(null)}
               >
-              Export
-            </button>
-
-            <input
-              ref={importFileInputRef}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              onChange={handleImportPresets}
-            />
-
-            <button
-              onClick={() => importFileInputRef.current?.click()}
-              style={{
-                borderColor: COLORS.TEXT,
-                ...(hoveredButton === "import"
-                  ? { backgroundColor: COLORS.TEXT, color: COLORS.BACKGROUND }
-                  : {}),
-              }}
-              className="px-1.5 cursor-pointer border rounded-xs"
-              onMouseEnter={() => setHoveredButton("import")}
-              onMouseLeave={() => setHoveredButton(null)}
-            >
-              Import
-            </button>
+                {preset.name}
+              </button>
+            ))}
           </div>
         </div>
       </div>
