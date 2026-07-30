@@ -18,6 +18,19 @@ const eqSessions = new Map();
 // Important because popup clicks and MV3 wakeups can overlap.
 const startingTabs = new Set();
 
+// Chrome service workers can restart while a captured tab is fullscreen.
+// Keep restore state in session storage so the original window state survives
+// worker restarts without persisting across browser sessions.
+const FULLSCREEN_RESTORE_STATES_KEY = "fullscreenRestoreStates";
+
+// Serialize fullscreen state transitions so events from multiple captured tabs
+// cannot overwrite each other's per-window restore records.
+let fullscreenOperation = Promise.resolve();
+
+// Guards for concurrent offscreen lifecycle requests across different tabs.
+let creatingOffscreen = null;
+let closingOffscreen = null;
+
 // MV3 NOTE (IMPORTANT):
 // Background service worker is ephemeral and loses memory after ~30s idle.
 // Offscreen audio graphs may still be alive when this file reloads.
@@ -66,10 +79,13 @@ async function rehydrateEqSessions() {
 // Rehydrate on service worker startup
 (async () => {
   try {
-    // Ensure offscreen exists before querying it
-    await ensureOffscreen();
-    // Now safely rehydrate
-    await rehydrateEqSessions();
+    // Only rehydrate an offscreen document that already exists. Creating a
+    // USER_MEDIA document at startup with no active sessions would keep an
+    // unnecessary background context alive indefinitely.
+    if (await chrome.offscreen.hasDocument()) {
+      await rehydrateEqSessions();
+      await closeOffscreenIfIdle();
+    }
   } catch (e) {
     console.warn("[BG] Startup rehydration failed:", e);
   }
@@ -79,16 +95,183 @@ async function rehydrateEqSessions() {
 // Offscreen documents are required in MV3 for audio processing.
 // This function is idempotent and safe to call multiple times.
 async function ensureOffscreen() {
-  const has = await chrome.offscreen.hasDocument();
-  if (!has) {
+  // A new capture that starts while the last session is closing must wait for
+  // that close to finish before checking whether a new document is needed.
+  if (closingOffscreen) await closingOffscreen;
+
+  if (await chrome.offscreen.hasDocument()) return;
+
+  if (!creatingOffscreen) {
     console.log("[BG] Creating offscreen document…");
-    await chrome.offscreen.createDocument({
-      url: "offscreen/offscreen.html",
-      reasons: ["AUDIO_PLAYBACK"], // Required for Web Audio usage
-      justification: "Audio processing for EQ extension",
-    });
-    console.log("[BG] Offscreen document created");
+    creatingOffscreen = chrome.offscreen
+      .createDocument({
+        url: "offscreen/offscreen.html",
+        reasons: ["USER_MEDIA"],
+        justification:
+          "Own tab-capture media streams and Web Audio EQ processing",
+      })
+      .then(() => {
+        console.log("[BG] Offscreen document created");
+      })
+      .finally(() => {
+        creatingOffscreen = null;
+      });
   }
+
+  await creatingOffscreen;
+}
+
+// USER_MEDIA documents do not have Chrome's 30-second idle timeout, so close
+// the shared document explicitly once every EQ graph has been released.
+async function closeOffscreenIfIdle() {
+  if (
+    eqSessions.size > 0 ||
+    startingTabs.size > 0 ||
+    creatingOffscreen ||
+    closingOffscreen
+  ) {
+    return;
+  }
+
+  try {
+    if (!(await chrome.offscreen.hasDocument())) return;
+
+    // State may have changed while hasDocument() was resolving.
+    if (
+      eqSessions.size > 0 ||
+      startingTabs.size > 0 ||
+      creatingOffscreen
+    ) {
+      return;
+    }
+
+    closingOffscreen = chrome.offscreen.closeDocument().finally(() => {
+      closingOffscreen = null;
+    });
+    await closingOffscreen;
+    console.log("[BG] Closed idle offscreen document");
+  } catch (e) {
+    closingOffscreen = null;
+    console.warn("[BG] Failed to close idle offscreen document:", e);
+  }
+}
+
+function queueFullscreenOperation(operation) {
+  const queued = fullscreenOperation.then(operation, operation);
+  fullscreenOperation = queued.catch(() => {});
+  return queued;
+}
+
+async function getFullscreenRestoreStates() {
+  const stored = await chrome.storage.session.get(
+    FULLSCREEN_RESTORE_STATES_KEY,
+  );
+  return stored[FULLSCREEN_RESTORE_STATES_KEY] ?? {};
+}
+
+async function setFullscreenRestoreStates(states) {
+  if (Object.keys(states).length === 0) {
+    await chrome.storage.session.remove(FULLSCREEN_RESTORE_STATES_KEY);
+    return;
+  }
+
+  await chrome.storage.session.set({
+    [FULLSCREEN_RESTORE_STATES_KEY]: states,
+  });
+}
+
+// Chrome keeps site fullscreen inside a visibly captured tab. Mirror the
+// workaround used by established EQ extensions by putting the containing
+// browser window into browser fullscreen while the site is fullscreen.
+async function enterBrowserFullscreenForTab(tabId) {
+  let tab;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch (e) {
+    console.warn("[BG] Could not resolve fullscreen tab", tabId, ":", e);
+    return;
+  }
+
+  const windowId = tab.windowId;
+  const window = await chrome.windows.get(windowId);
+  const states = await getFullscreenRestoreStates();
+  const key = String(windowId);
+  const existing = states[key];
+
+  // Duplicate fullscreen status events should not replace the original state.
+  if (existing?.tabId === tabId) return;
+
+  // Only one tab can own site fullscreen in a window at a time. If Chrome
+  // reports the next owner before the previous exit event, retain the original
+  // state that must eventually be restored.
+  states[key] =
+    existing && window.state === "fullscreen"
+      ? { ...existing, tabId }
+      : {
+          tabId,
+          previousState: window.state,
+          forcedState: window.state === "fullscreen" ? null : "fullscreen",
+        };
+  await setFullscreenRestoreStates(states);
+
+  if (window.state === "fullscreen") return;
+
+  try {
+    await chrome.windows.update(windowId, { state: "fullscreen" });
+  } catch (e) {
+    // The window was not changed, so discard the restore record.
+    const latestStates = await getFullscreenRestoreStates();
+    if (latestStates[key]?.tabId === tabId) {
+      delete latestStates[key];
+      await setFullscreenRestoreStates(latestStates);
+    }
+    throw e;
+  }
+}
+
+async function restoreBrowserFullscreenForTabNow(tabId) {
+  const states = await getFullscreenRestoreStates();
+  const matchingEntries = Object.entries(states).filter(
+    ([, state]) => state?.tabId === tabId,
+  );
+
+  for (const [key, state] of matchingEntries) {
+    const windowId = Number(key);
+
+    try {
+      const window = await chrome.windows.get(windowId);
+
+      // Only undo the state we forced. If the user manually changed the window
+      // while the video was fullscreen, leave their newer choice untouched.
+      if (
+        state.forcedState === "fullscreen" &&
+        window.state === "fullscreen"
+      ) {
+        await chrome.windows.update(windowId, {
+          state: state.previousState,
+        });
+      }
+    } catch (e) {
+      // A closed window needs no restoration; other failures are non-fatal and
+      // should not leave stale session records behind.
+      console.warn(
+        "[BG] Could not restore window for captured tab",
+        tabId,
+        ":",
+        e,
+      );
+    }
+
+    delete states[key];
+  }
+
+  await setFullscreenRestoreStates(states);
+}
+
+function restoreBrowserFullscreenForTab(tabId) {
+  return queueFullscreenOperation(() =>
+    restoreBrowserFullscreenForTabNow(tabId),
+  );
 }
 
 // Send a message to the offscreen document and await its response.
@@ -165,6 +348,7 @@ async function startEqForTab(tabId, initialState = {}) {
   } finally {
     // Always release the re-entrancy lock for this tab
     startingTabs.delete(tabId);
+    await closeOffscreenIfIdle();
   }
 }
 
@@ -198,6 +382,17 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
     (async () => {
       try {
+        await restoreBrowserFullscreenForTab(tabId);
+      } catch (e) {
+        console.warn(
+          "[BG] Failed to restore fullscreen for removed tab",
+          tabId,
+          ":",
+          e,
+        );
+      }
+
+      try {
         // Wait for offscreen to fully cleanup this tab's audio
         await sendToOffscreen({
           type: "STOP_EQ",
@@ -208,9 +403,30 @@ chrome.tabs.onRemoved.addListener((tabId) => {
       } catch (e) {
         console.warn("[BG] Failed to cleanup tab", tabId, ":", e);
         eqSessions.delete(tabId); // Cleanup session even on error
+      } finally {
+        await closeOffscreenIfIdle();
       }
     })();
   }
+});
+
+chrome.tabCapture.onStatusChanged.addListener((info) => {
+  queueFullscreenOperation(async () => {
+    if (info.status === "active" && info.fullscreen === true) {
+      await enterBrowserFullscreenForTab(info.tabId);
+      return;
+    }
+
+    if (
+      info.fullscreen === false ||
+      info.status === "stopped" ||
+      info.status === "error"
+    ) {
+      await restoreBrowserFullscreenForTabNow(info.tabId);
+    }
+  }).catch((e) => {
+    console.warn("[BG] Failed to synchronize captured-tab fullscreen:", e);
+  });
 });
 
 // Central message router for popup → background → offscreen.
@@ -273,6 +489,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const tabId = msg.tabId;
 
       try {
+        await restoreBrowserFullscreenForTab(tabId);
+      } catch (e) {
+        console.warn(
+          "[BG] Failed to restore fullscreen while stopping tab",
+          tabId,
+          ":",
+          e,
+        );
+      }
+
+      try {
         // Remove from sessions before cleanup
         eqSessions.delete(tabId);
 
@@ -285,6 +512,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse(res ?? { ok: true });
       } catch (e) {
         sendResponse({ ok: false, error: String(e?.message || e) });
+      } finally {
+        await closeOffscreenIfIdle();
       }
     })();
     return true;
@@ -360,15 +589,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === "REINIT_MISSING_AUDIO") {
     (async () => {
       try {
-        // Ensure offscreen exists (recreate if it crashed)
-        await ensureOffscreen();
-
         const activeTabIds = Array.from(eqSessions.keys());
 
         if (activeTabIds.length === 0) {
           sendResponse({ ok: true, reinitialized: [] });
           return;
         }
+
+        // Ensure offscreen exists (recreate if it crashed)
+        await ensureOffscreen();
 
         // Query offscreen for which audio graphs are still active
         const offscreenStatus = await sendToOffscreen({

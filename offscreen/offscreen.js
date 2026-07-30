@@ -10,7 +10,6 @@ import {
   Q_MULTIPLIER,
   DEFAULT_PEAKING_Q,
   DEFAULT_SHELF_Q,
-  isShelfFilter,
   FREQUENCIES,
 } from "../src/lib/qCalculations.js";
 
@@ -128,6 +127,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               chromeMediaSourceId: msg.streamId,
             },
           },
+          video: false,
         });
 
         // Build the audio graph for this tab:
