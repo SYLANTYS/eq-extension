@@ -715,7 +715,7 @@ export default function Popup() {
           </div>
 
           <div>
-            <i>Automatically stops EQing when audio stops playing!</i>
+            <i>Continues EQing even when audio stops playing!</i>
           </div>
         </div>
       </footer>
